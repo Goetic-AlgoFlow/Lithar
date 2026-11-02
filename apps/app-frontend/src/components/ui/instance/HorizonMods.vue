@@ -1,5 +1,13 @@
 <script setup lang="ts">
-import { DownloadIcon, ExternalIcon, FolderOpenIcon, SpinnerIcon, TrashIcon } from '@modrinth/assets'
+import {
+	DownloadIcon,
+	ExternalIcon,
+	FolderOpenIcon,
+	ImageIcon,
+	PaintbrushIcon,
+	SpinnerIcon,
+	TrashIcon,
+} from '@modrinth/assets'
 import {
 	Admonition,
 	Avatar,
@@ -23,8 +31,10 @@ import {
 	remove_horizon_mod,
 	set_horizon_mod_enabled,
 } from '@/helpers/instance'
+import { injectInstancePage } from '@/pages/instance/instance-context'
 
 const props = defineProps<{ instanceId: string }>()
+const instancePage = injectInstancePage()
 
 const { formatMessage } = useVIntl()
 const { handleError } = injectNotificationManager()
@@ -141,6 +151,11 @@ const messages = defineMessages({
 			"**{name}** is native code: it is not sandboxed and runs with full access to this computer. Oxyra's registry reviewed it before listing it, but read its source if you are unsure. It will be compiled into this instance's game before its next launch.",
 	},
 	installFile: { id: 'app.horizon-mods.install-file', defaultMessage: 'Install from file' },
+	browseShaders: { id: 'app.horizon-mods.browse-shaders', defaultMessage: 'Shaders' },
+	browseResourcePacks: {
+		id: 'app.horizon-mods.browse-resource-packs',
+		defaultMessage: 'Resource packs',
+	},
 	requires: { id: 'app.horizon-mods.requires', defaultMessage: 'Requires: {mods}' },
 	fileFilter: { id: 'app.horizon-mods.file-filter', defaultMessage: 'Oxyra mods' },
 	trustFileDescription: {
@@ -169,6 +184,14 @@ const messages = defineMessages({
 				<h2 class="m-0 text-xl font-bold text-contrast">{{ formatMessage(messages.title) }}</h2>
 				<p class="m-0 text-secondary">{{ formatMessage(messages.description) }}</p>
 			</div>
+			<Button @click="instancePage.browseContent('shader')">
+				<PaintbrushIcon />
+				{{ formatMessage(messages.browseShaders) }}
+			</Button>
+			<Button @click="instancePage.browseContent('resourcepack')">
+				<ImageIcon />
+				{{ formatMessage(messages.browseResourcePacks) }}
+			</Button>
 			<Button :disabled="busy !== null" @click="pickFile">
 				<FolderOpenIcon />
 				{{ formatMessage(messages.installFile) }}

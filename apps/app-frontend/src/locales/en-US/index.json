@@ -4909,5 +4909,11 @@
   },
   "lithar.app.settings.credits.notice": {
     "message": "Not an official Minecraft product. Not approved by or associated with Mojang or Microsoft."
+  },
+  "app.horizon-mods.browse-shaders": {
+    "message": "Shaders"
+  },
+  "app.horizon-mods.browse-resource-packs": {
+    "message": "Resource packs"
   }
 }

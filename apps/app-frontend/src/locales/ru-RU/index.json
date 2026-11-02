@@ -4891,5 +4891,11 @@
   },
   "lithar.app.settings.credits.notice": {
     "message": "Не является официальным продуктом Minecraft. Не одобрено и не связано с Mojang или Microsoft."
+  },
+  "app.horizon-mods.browse-shaders": {
+    "message": "Шейдеры"
+  },
+  "app.horizon-mods.browse-resource-packs": {
+    "message": "Наборы ресурсов"
   }
 }
