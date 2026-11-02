@@ -1,0 +1,18 @@
+merge_queue:
+  mode: parallel
+scopes:
+  source:
+    files:
+      frontend:
+        include:
+          - packages/ui/**/*
+          - packages/utils/**/*
+          - packages/assets/**/*
+          - "**/pnpm-*.yaml"
+
+      app:
+        include:
+          - apps/app/**
+          - apps/app-frontend/**
+          - packages/app-lib/**
+          - packages/app-macros/**

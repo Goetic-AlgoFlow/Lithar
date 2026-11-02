@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="624" height="192" viewBox="0 0 624 192" fill="none">
+	<defs>
+		<linearGradient id="lithar-app-bg" x1="16" y1="10" x2="176" y2="182" gradientUnits="userSpaceOnUse">
+			<stop offset="0" stop-color="#8B5CF6" />
+			<stop offset="1" stop-color="#06B6D4" />
+		</linearGradient>
+		<linearGradient id="lithar-app-text" x1="200" y1="40" x2="600" y2="150" gradientUnits="userSpaceOnUse">
+			<stop offset="0" stop-color="#A78BFA" />
+			<stop offset="1" stop-color="#22D3EE" />
+		</linearGradient>
+	</defs>
+	<g transform="translate(16 16) scale(0.3125)">
+		<rect width="512" height="512" rx="112" fill="url(#lithar-app-bg)" />
+		<path d="M138 104h76v228h142v76H138V104Z" fill="#FFFFFF" />
+		<path d="M356 300l52 54-52 54-52-54 52-54Z" fill="#E6FAFF" />
+		<path d="M356 300v108l-52-54 52-54Z" fill="#FFFFFF" fill-opacity="0.35" />
+	</g>
+	<text x="208" y="132" font-family="Inter, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="112" font-weight="800" letter-spacing="-2" fill="url(#lithar-app-text)">Lithar</text>
+</svg>

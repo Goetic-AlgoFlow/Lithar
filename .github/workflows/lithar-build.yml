@@ -1,0 +1,243 @@
+name: Lithar App Build
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - prod
+      - release
+      - beta
+      - feature*
+    tags:
+      - release-*
+      - beta-*
+    paths:
+      - .github/workflows/lithar-build.yml
+      - 'apps/app/**'
+      - 'apps/app-frontend/**'
+      - 'packages/app-lib/**'
+      - 'packages/app-macros/**'
+      - 'packages/assets/**'
+      - 'packages/ui/**'
+      - 'packages/utils/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'turbo.jsonc'
+      - 'mise.toml'
+      - 'rust-toolchain.toml'
+  workflow_dispatch:
+
+concurrency:
+  group: lithar-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            label: Linux x86_64 Build
+            target: x86_64-unknown-linux-gnu
+            rust_targets: x86_64-unknown-linux-gnu
+            artifact_name: lithar-bundle-linux-x86_64
+          - runner: ubuntu-24.04-arm
+            label: Linux aarch64 Build
+            target: aarch64-unknown-linux-gnu
+            rust_targets: aarch64-unknown-linux-gnu
+            artifact_name: lithar-bundle-linux-aarch64
+            nightly_experimental: true
+          - runner: windows-latest
+            label: Windows x86_64 Build
+            target: x86_64-pc-windows-msvc
+            rust_targets: x86_64-pc-windows-msvc
+            artifact_name: lithar-bundle-windows-x86_64
+          - runner: windows-latest
+            label: Windows aarch64 Build
+            target: aarch64-pc-windows-msvc
+            rust_targets: aarch64-pc-windows-msvc
+            artifact_name: lithar-bundle-windows-aarch64
+            nightly_experimental: true
+          - runner: macos-latest
+            label: macOS x86_64 Build
+            target: x86_64-apple-darwin
+            rust_targets: x86_64-apple-darwin
+            artifact_name: lithar-bundle-macos-x86_64
+            nightly_experimental: true
+          - runner: macos-latest
+            label: macOS aarch64 Build
+            target: aarch64-apple-darwin
+            rust_targets: aarch64-apple-darwin
+            artifact_name: lithar-bundle-macos-aarch64
+
+    env:
+      CI: true
+
+    steps:
+      - name: 📥 Check out code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: 🔍 Validate Git config does not introduce CRLF
+        shell: bash
+        run: |
+          echo "🔍 Checking Git config for CRLF settings..."
+
+          autocrlf=$(git config --get core.autocrlf || echo "unset")
+          eol_setting=$(git config --get core.eol || echo "unset")
+
+          echo "core.autocrlf = $autocrlf"
+          echo "core.eol = $eol_setting"
+
+          if [ "$autocrlf" = "true" ]; then
+            echo "⚠️ WARNING: core.autocrlf is set to 'true'. Consider setting it to 'input' or 'false'."
+          fi
+
+          if [ "$eol_setting" = "crlf" ]; then
+            echo "⚠️ WARNING: core.eol is set to 'crlf'. Consider unsetting it or setting it to 'lf'."
+          fi
+
+      - name: 🔍 Check migration files line endings (LF only)
+        shell: bash
+        run: |
+          echo "🔍 Scanning migration SQL files for CR characters (\\r)..."
+
+          if grep -Iq $'\r' packages/app-lib/migrations/*.sql; then
+            echo "❌ ERROR: Some migration files contain CR characters; expected LF-only files."
+            exit 1
+          fi
+
+          echo "✅ All migration files use LF line endings."
+
+      - name: 🧰 Setup Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          target: ${{ matrix.rust_targets }}
+
+      - name: ☕ Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: 🧰 Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: 🧰 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: 🧰 Setup mise
+        uses: jdx/mise-action@v2
+        with:
+          install: true
+          cache: true
+
+      - name: 🦀 Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+          cache-on-failure: true
+
+      - name: 💨 Setup Turbo cache
+        uses: rharkor/caching-for-turbo@v1.8
+
+      - name: 🐧 Install Linux build dependencies
+        if: contains(matrix.runner, 'ubuntu-')
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -yq \
+            build-essential \
+            curl \
+            file \
+            libayatana-appindicator3-dev \
+            libgtk-3-dev \
+            librsvg2-dev \
+            libssl-dev \
+            libwebkit2gtk-4.1-dev \
+            patchelf \
+            xdg-utils
+
+      - name: ⚙️ Set application environment
+        shell: bash
+        run: cp packages/app-lib/.env.prod packages/app-lib/.env
+
+      - name: 📦 Install dependencies
+        shell: bash
+        run: pnpm install --frozen-lockfile
+
+      - name: 🧹 Clean previous bundles
+        shell: bash
+        run: |
+          rm -rf target/release/bundle
+          rm -rf target/*/release/bundle || true
+
+      - name: 🔨 Build app
+        shell: bash
+        run: mise exec -- pnpm --filter @modrinth/app exec tauri build --target ${{ matrix.target }}
+
+      - name: 🏷️ Mark experimental packages
+        if: matrix.nightly_experimental == true
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { readdir, rename } from 'node:fs/promises'
+          import { join } from 'node:path'
+
+          const packageExtensions = new Set(['.exe', '.msi', '.dmg', '.rpm', '.AppImage', '.deb'])
+
+          async function markPackages(directory) {
+            for (const entry of await readdir(directory, { withFileTypes: true })) {
+              const filePath = join(directory, entry.name)
+              if (entry.isDirectory()) {
+                await markPackages(filePath)
+              } else if (entry.isFile() && [...packageExtensions].some((extension) => entry.name.endsWith(extension))) {
+                await rename(filePath, join(directory, `nightly_expiremental_${entry.name}`))
+              }
+            }
+          }
+
+          await markPackages('target/${{ matrix.target }}/release/bundle')
+          NODE
+
+      - name: 🔐 Generate SHA-256 checksums
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto'
+          import { readdir, readFile, writeFile } from 'node:fs/promises'
+          import { join } from 'node:path'
+
+          async function addChecksums(directory) {
+            for (const entry of await readdir(directory, { withFileTypes: true })) {
+              const filePath = join(directory, entry.name)
+              if (entry.isDirectory()) {
+                await addChecksums(filePath)
+              } else if (entry.isFile() && !entry.name.endsWith('.sha256.txt')) {
+                const contents = await readFile(filePath)
+                const checksum = createHash('sha256').update(contents).digest('hex')
+                await writeFile(`${filePath}.sha256.txt`, `${checksum}  ${entry.name}\n`)
+              }
+            }
+          }
+
+          await addChecksums('target/${{ matrix.target }}/release/bundle')
+          NODE
+
+      - name: 📤 Upload app bundles
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: |
+            target/${{ matrix.target }}/release/bundle/**
+          if-no-files-found: error

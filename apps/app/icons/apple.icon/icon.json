@@ -1,0 +1,73 @@
+{
+	"fill": {
+		"linear-gradient": [
+			"display-p3:0.54510,0.36078,0.96471,1.00000",
+			"display-p3:0.02353,0.71373,0.83137,1.00000"
+		]
+	},
+	"groups": [
+		{
+			"blur-material": 0.5,
+			"layers": [
+				{
+					"blend-mode-specializations": [
+						{
+							"appearance": "tinted",
+							"value": "normal"
+						}
+					],
+					"fill-specializations": [
+						{
+							"value": {
+								"linear-gradient": [
+									"display-p3:1.00000,1.00000,1.00000,1.00000",
+									"display-p3:0.87843,0.97647,1.00000,1.00000"
+								]
+							}
+						},
+						{
+							"appearance": "tinted",
+							"value": "automatic"
+						}
+					],
+					"glass": true,
+					"image-name": "Lithar logo.svg",
+					"name": "Lithar logo",
+					"opacity-specializations": [
+						{
+							"appearance": "tinted",
+							"value": 1
+						}
+					],
+					"position": {
+						"scale": 4.1,
+						"translation-in-points": [0, 0]
+					}
+				}
+			],
+			"lighting": "individual",
+			"opacity-specializations": [
+				{
+					"value": 1
+				},
+				{
+					"appearance": "tinted",
+					"value": 1
+				}
+			],
+			"shadow": {
+				"kind": "neutral",
+				"opacity": 0.5
+			},
+			"specular": true,
+			"translucency": {
+				"enabled": true,
+				"value": 0.5
+			}
+		}
+	],
+	"supported-platforms": {
+		"circles": ["watchOS"],
+		"squares": "shared"
+	}
+}

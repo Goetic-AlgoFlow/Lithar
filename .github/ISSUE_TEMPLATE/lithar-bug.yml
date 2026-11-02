@@ -1,0 +1,140 @@
+name: "🐞 Lithar Bug Report"
+description: Report a bug specific to the Lithar fork, launcher, or fork integrations.
+labels: [bug, lithar]
+type: bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form only for issues specific to Lithar.
+        If the problem is upstream Modrinth behavior and not caused by this fork, mention that clearly in the description.
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Please confirm the following
+      options:
+        - label: I checked the existing issues for duplicates
+          required: true
+        - label: I reproduced this on the latest Lithar build available to me
+          required: true
+        - label: I understand this tracker is for Lithar-specific issues, not general Modrinth support
+          required: true
+
+  - type: dropdown
+    id: issue-type
+    attributes:
+      label: What area is affected?
+      options:
+        - Launcher UI
+        - Authentication
+        - Offline account flow
+        - Ely.by integration
+        - Minecraft launch
+        - Update system
+        - Installation or first launch
+        - Performance
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - macOS
+        - Linux
+    validations:
+      required: true
+
+  - type: input
+    id: app-version
+    attributes:
+      label: Lithar version
+      description: Specify the launcher version, tag, or build name you are using.
+      placeholder: "Example: v0.14.801, v0.14.902 ..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install-source
+    attributes:
+      label: Installation source
+      description: Where did you get this build from?
+      options:
+        - Telegram
+        - Black Minecraft
+        - External web resource (Other)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: account-type
+    attributes:
+      label: Account type involved
+      options:
+        - Not related to accounts
+        - Microsoft account
+        - Offline account
+        - Ely.by account
+        - Multiple account types
+    validations:
+      required: true
+
+  - type: textarea
+    id: bug-description
+    attributes:
+      label: What happened?
+      description: Describe the actual problem. Include visible errors, broken behavior, and what makes this Lithar-specific.
+      placeholder: "Example: The launcher closes after selecting an offline account and pressing Play..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: What did you expect to happen?
+      placeholder: "Example: The launcher should continue to instance startup and open Minecraft."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction-steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open Lithar
+        2. Add an offline account
+        3. Open an instance
+        4. Press Play
+        5. Observe the problem
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or error text
+      description: Paste launcher logs, console output, panic text, or updater/auth errors if available.
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: system-details
+    attributes:
+      label: System details
+      description: Add anything relevant such as OS version, architecture, GPU, JVM, or whether this is a portable install.
+      placeholder: Windows 11 24H2, x64, portable install, Java 21 bundled
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Screenshots, videos, related commits, comparisons with upstream Modrinth, or anything else that may help.
+    validations:
+      required: false

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none">
+	<defs>
+		<linearGradient id="lithar-logo-bg" x1="40" y1="24" x2="472" y2="488" gradientUnits="userSpaceOnUse">
+			<stop offset="0" stop-color="#8B5CF6" />
+			<stop offset="1" stop-color="#06B6D4" />
+		</linearGradient>
+		<linearGradient id="lithar-logo-gem" x1="300" y1="300" x2="420" y2="420" gradientUnits="userSpaceOnUse">
+			<stop offset="0" stop-color="#FFFFFF" />
+			<stop offset="1" stop-color="#C4F1FF" />
+		</linearGradient>
+	</defs>
+	<rect width="512" height="512" rx="112" fill="url(#lithar-logo-bg)" />
+	<path d="M138 104h76v228h142v76H138V104Z" fill="#FFFFFF" />
+	<path d="M356 300l52 54-52 54-52-54 52-54Z" fill="url(#lithar-logo-gem)" />
+	<path d="M356 300v108l-52-54 52-54Z" fill="#FFFFFF" fill-opacity="0.35" />
+</svg>
