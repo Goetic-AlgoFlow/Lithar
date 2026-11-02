@@ -85,10 +85,10 @@ function installFile(path: string, trustNativeCode: boolean) {
 async function pickFile() {
 	const path = await open({
 		multiple: false,
-		filters: [{ name: formatMessage(messages.fileFilter), extensions: ['hmod', 'hnmod'] }],
+		filters: [{ name: formatMessage(messages.fileFilter), extensions: ['hmod', 'oxmod', 'hnmod'] }],
 	})
 	if (typeof path !== 'string') return
-	if (path.toLowerCase().endsWith('.hnmod')) {
+	if (/\.(oxmod|hnmod)$/i.test(path)) {
 		pendingFile.value = path
 		trustModal.value?.show()
 		return

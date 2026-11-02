@@ -515,9 +515,10 @@ fn with_requirements(mods: &InstalledMods, id: &str) -> Vec<String> {
     out
 }
 
-/// Installs one of the player's own mods from a `.hmod` or `.hnmod` file and
-/// turns it on, returning its id. A native mod needs `trust_native_code`, as
-/// one from the registry does.
+/// Installs one of the player's own mods from a `.hmod`, `.oxmod` or `.hnmod`
+/// file and turns it on, returning its id: `.oxmod` is Oxyra's name for a native
+/// mod, `.hnmod` Horizon's. A native mod needs `trust_native_code`, as one from
+/// the registry does.
 pub async fn install_file(
     instance: &Path,
     path: &Path,
@@ -525,9 +526,9 @@ pub async fn install_file(
 ) -> crate::Result<String> {
     let kind = match path.extension().and_then(|e| e.to_str()) {
         Some("hmod") => HorizonModKind::Mod,
-        Some("hnmod") => HorizonModKind::NativeMod,
+        Some("oxmod" | "hnmod") => HorizonModKind::NativeMod,
         _ => bail!(ErrorKind::InputError(
-            "an Oxyra mod is a .hmod or .hnmod file".to_string()
+            "an Oxyra mod is a .hmod, .oxmod or .hnmod file".to_string()
         )),
     };
     if kind == HorizonModKind::NativeMod && !trust_native_code {
