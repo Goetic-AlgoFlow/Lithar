@@ -19,6 +19,10 @@ use std::path::{Path, PathBuf};
 
 const INDEX_URL: &str =
     "https://horizon-rust.github.io/horizon-mods/index.json";
+/// Oxyra's mod library (github.com/Goetic-AlgoFlow/oxyra-mods), in the same
+/// format, read beside Horizon's registry: its mods win over a Horizon one of
+/// the same id.
+const OXYRA_INDEX_URL: &str = "https://raw.githubusercontent.com/Goetic-AlgoFlow/oxyra-mods/main/index.json";
 const INDEX_SCHEMA: u32 = 1;
 const MAX_FILE_SIZE: u64 = 64 << 20;
 const MODS_LIST: &str = "horizon-mods.txt";
@@ -143,10 +147,40 @@ pub(crate) struct InstalledMod {
 
 pub(crate) type InstalledMods = BTreeMap<String, InstalledMod>;
 
+/// Oxyra's library and Horizon's registry as one index; one that can't be read
+/// is left out, both is an error.
 async fn read_index(state: &State) -> crate::Result<Index> {
+    let (oxyra, horizon) = futures::join!(
+        fetch_index(state, OXYRA_INDEX_URL),
+        fetch_index(state, INDEX_URL)
+    );
+    let (mut index, other) = match (oxyra, horizon) {
+        (Ok(o), Ok(h)) => (o, Some(h)),
+        (Ok(o), Err(e)) => {
+            tracing::warn!("Horizon's mod registry: {e}");
+            (o, None)
+        }
+        (Err(e), Ok(h)) => {
+            tracing::warn!("Oxyra's mod library: {e}");
+            (h, None)
+        }
+        (Err(_), Err(e)) => return Err(e),
+    };
+    if let Some(other) = other {
+        let ours: std::collections::HashSet<String> =
+            index.projects.iter().map(|p| p.id.clone()).collect();
+        index
+            .projects
+            .extend(other.projects.into_iter().filter(|p| !ours.contains(&p.id)));
+        index.revoked.extend(other.revoked);
+    }
+    Ok(index)
+}
+
+async fn fetch_index(state: &State, url: &str) -> crate::Result<Index> {
     let index: Index = fetch_json(
         Method::GET,
-        INDEX_URL,
+        url,
         None,
         None,
         None,
