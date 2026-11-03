@@ -32,6 +32,7 @@ import { instanceKeys, instanceListQueryOptions } from '@/pages/instance/query-o
 
 import CommandHistoryModal from './command-history-modal.vue'
 import GameSettingsModal from './game-settings-modal/index.vue'
+import OptionsProfiles from './options-profiles.vue'
 import SyncedServersModal from './servers-modal.vue'
 import SyncSourceModal from './sync-source-modal.vue'
 import SyncedPacksModal from './synced-packs-modal.vue'
@@ -632,5 +633,7 @@ onScopeDispose(clearBaseSource)
 				</div>
 			</div>
 		</section>
+		<hr class="my-6 border-divider" />
+		<OptionsProfiles @applied="handleGameSettingsSaved" />
 	</div>
 </template>

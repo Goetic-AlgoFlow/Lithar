@@ -13,7 +13,9 @@ import type { BrowseInstallContentType, CardAction, ProjectType, Tags } from '@m
 import {
 	BrowsePageLayout,
 	BrowseSidebar,
+	Checkbox,
 	commonMessages,
+	ConfirmModal,
 	ContextMenu,
 	CreationFlowModal,
 	defineMessages,
@@ -38,13 +40,18 @@ import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import type { LocationQuery } from 'vue-router'
 import { useRoute, useRouter } from 'vue-router'
 
+import { trustMessages } from '@/components/ui/instance/horizon-trust-messages'
+import { nativeTrustSkipped, skipNativeTrust } from '@/components/ui/instance/native-trust'
 import { useAppServerBrowse } from '@/composables/browse/use-app-server-browse'
 import { useAppEvent } from '@/composables/use-app-event'
 import { useAppSettings } from '@/composables/use-app-settings.ts'
 import { get_project, get_search_results_v3, get_version_many } from '@/helpers/cache.js'
 import {
+	get_horizon_mods,
 	get_installed_project_ids as getInstalledProjectIds,
 	getInstanceIconUrl,
+	type HorizonMod,
+	install_horizon_mod,
 	list as listInstances,
 } from '@/helpers/instance'
 import { get_loader_versions as getLoaderManifest } from '@/helpers/metadata'
@@ -890,6 +897,43 @@ function getCardActions(
 		return getServerCardActions(result)
 	}
 
+	const oxyra = oxyraKnown.get(result.project_id ?? '')
+	if (oxyra) {
+		const hit = result as Labrinth.Search.v3.ResultSearchProject & {
+			installed?: boolean
+			installing?: boolean
+		}
+		const installed = hit.installed || allInstalledIds.value.has(result.project_id ?? '')
+		return [
+			{
+				key: 'install',
+				label: formatMessage(
+					hit.installing
+						? messages.installingToServer
+						: installed
+							? commonMessages.installedLabel
+							: commonMessages.installButton,
+				),
+				icon: hit.installing ? SpinnerIcon : installed ? CheckIcon : PlusIcon,
+				iconClass: hit.installing ? 'animate-spin' : undefined,
+				disabled: installed || hit.installing,
+				color: 'brand',
+				type: 'outlined',
+				onClick: () => {
+					if (oxyra.kind === 'native-mod' && !nativeTrustSkipped()) {
+						oxyraPending.value = oxyra
+						oxyraDontAsk.value = false
+						oxyraTrustModal.value?.show()
+					} else if (oxyra.kind === 'native-mod') {
+						void oxyraInstall(oxyra, true)
+					} else {
+						void oxyraInstall(oxyra, false)
+					}
+				},
+			},
+		]
+	}
+
 	const projectResult = result as Labrinth.Search.v3.ResultSearchProject & {
 		installed?: boolean
 		installing?: boolean
@@ -1073,8 +1117,88 @@ function onSearchResultsInstalled(ids: string[]) {
 	newlyInstalled.value = Array.from(new Set([...newlyInstalled.value, ...ids]))
 }
 
+// An Oxyra instance's mods come from Oxyra's registry: Modrinth has no such loader.
+const oxyraMods = computed(
+	() => instance.value?.loader === 'horizon' && projectType.value === 'mod',
+)
+const oxyraTrustModal = ref<InstanceType<typeof ConfirmModal> | null>(null)
+const oxyraPending = ref<HorizonMod | null>(null)
+const oxyraDontAsk = ref(false)
+const oxyraKnown = new Map<string, HorizonMod>()
+const OXYRA_PREFIX = 'oxyra:'
+
+function oxyraTrusted() {
+	if (oxyraDontAsk.value) skipNativeTrust().catch(handleError)
+	if (oxyraPending.value) void oxyraInstall(oxyraPending.value, true)
+}
+
+async function oxyraInstall(mod: HorizonMod, trusted: boolean) {
+	const instanceId = instance.value?.id
+	if (!instanceId) return
+	const id = OXYRA_PREFIX + mod.id
+	setProjectInstalling(id, true)
+	try {
+		await install_horizon_mod(instanceId, mod.id, trusted)
+		onSearchResultsInstalled([id])
+		void queryClient.invalidateQueries({ queryKey: ['instance', instanceId, 'horizon-mods'] })
+	} catch (err) {
+		handleError(err as Error)
+	} finally {
+		setProjectInstalling(id, false)
+	}
+}
+
+async function searchOxyra(requestParams: string) {
+	const instanceId = instance.value?.id ?? ''
+	const mods = await queryClient.fetchQuery({
+		queryKey: ['instance', instanceId, 'horizon-mods'],
+		queryFn: () => get_horizon_mods(instanceId),
+		staleTime: 30_000,
+	})
+	const params = new URLSearchParams(requestParams.replace(/^\?/, ''))
+	const query = (params.get('query') ?? '').toLowerCase()
+	const limit = Number(params.get('limit') ?? 20)
+	const offset = Number(params.get('offset') ?? 0)
+	const found = mods
+		.filter((m) =>
+			[m.name, m.summary, m.authors.join(' ')].some((t) => t.toLowerCase().includes(query)),
+		)
+		.sort((a, b) => (b.downloads ?? 0) - (a.downloads ?? 0))
+	oxyraKnown.clear()
+	for (const m of found) oxyraKnown.set(OXYRA_PREFIX + m.id, m)
+	return {
+		projectHits: found.slice(offset, offset + limit).map(
+			(m) =>
+				({
+					project_id: OXYRA_PREFIX + m.id,
+					slug: m.id,
+					name: m.name,
+					summary: m.summary,
+					author: m.authors[0] ?? '',
+					icon_url: m.icon ?? undefined,
+					downloads: m.downloads ?? 0,
+					follows: 0,
+					categories: [],
+					display_categories: [],
+					loaders: [],
+					project_loader_fields: {},
+					date_created: new Date(0).toISOString(),
+					date_modified: new Date(0).toISOString(),
+					organization: null,
+					organization_id: null,
+					project_types: ['mod'],
+					installed: !!m.installed_version,
+				}) as unknown as Labrinth.Search.v3.ResultSearchProject & { installed?: boolean },
+		),
+		serverHits: [],
+		total_hits: found.length,
+		per_page: limit,
+	}
+}
+
 async function search(requestParams: string) {
 	debugLog('searching v3', requestParams)
+	if (oxyraMods.value) return searchOxyra(requestParams)
 	const isServer = projectType.value === 'server'
 
 	const rawResults = await queryClient.fetchQuery({
@@ -1262,10 +1386,14 @@ provideBrowseManager({
 	...searchState,
 	advancedFiltersCollapsed,
 	dismissedPhotosensitivityFilterWarning,
-	getProjectLink: (result: Labrinth.Search.v3.ResultSearchProject) => ({
-		path: `/project/${result.project_id ?? result.slug}`,
-		query: getProjectBrowseQuery(),
-	}),
+	// An Oxyra mod has no Modrinth page: its card stays here.
+	getProjectLink: (result: Labrinth.Search.v3.ResultSearchProject) =>
+		result.project_id?.startsWith(OXYRA_PREFIX)
+			? { path: route.path, query: route.query }
+			: {
+					path: `/project/${result.project_id ?? result.slug}`,
+					query: getProjectBrowseQuery(),
+				},
 	getServerProjectLink: (result: Labrinth.Search.v3.ResultSearchProject) => ({
 		path: `/project/${result.slug ?? result.project_id}`,
 		query: getProjectBrowseQuery(),
@@ -1331,6 +1459,17 @@ provideBrowseManager({
 
 <template>
 	<div class="flex flex-col gap-2 p-6">
+		<ConfirmModal
+			ref="oxyraTrustModal"
+			:title="formatMessage(trustMessages.trustTitle)"
+			:description="
+				formatMessage(trustMessages.trustDescription, { name: oxyraPending?.name ?? '' })
+			"
+			:proceed-label="formatMessage(trustMessages.trustProceed)"
+			@proceed="oxyraTrusted"
+		>
+			<Checkbox v-model="oxyraDontAsk" :label="formatMessage(trustMessages.trustDontAsk)" />
+		</ConfirmModal>
 		<BrowsePageLayout>
 			<template #after>
 				<ContextMenu ref="contextMenuRef" :label="formatMessage(messages.projectActionsLabel)">

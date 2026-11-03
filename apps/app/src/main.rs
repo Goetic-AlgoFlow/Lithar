@@ -296,6 +296,7 @@ fn main() {
         .plugin(api::import::init())
         .plugin(api::install::init())
         .plugin(api::instance::init())
+        .plugin(api::local_servers::init())
         .plugin(api::logs::init())
         .plugin(api::jre::init())
         .plugin(api::metadata::init())
@@ -343,6 +344,12 @@ fn main() {
                 {
                     tracing::warn!(
                         "Failed to flush pending Minecraft skin change before exit: {error}"
+                    );
+                }
+
+                if matches!(&event, tauri::RunEvent::ExitRequested { .. }) {
+                    tauri::async_runtime::block_on(
+                        theseus::local_server::stop_all(),
                     );
                 }
 

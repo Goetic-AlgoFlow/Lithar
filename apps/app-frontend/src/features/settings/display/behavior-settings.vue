@@ -124,6 +124,24 @@ const messages = defineMessages({
 		id: 'app.appearance-settings.skip-non-essential-warnings.title',
 		defaultMessage: 'Skip non-essential warnings',
 	},
+	askBeforeNativeModsTitle: {
+		id: 'app.behavior-settings.ask-before-native-mods.title',
+		defaultMessage: 'Ask before installing native mods',
+	},
+	askBeforeNativeModsDescription: {
+		id: 'app.behavior-settings.ask-before-native-mods.description',
+		defaultMessage:
+			'Native Oxyra mods run with full access to this computer. Turned off, they install without asking: only do it if you trust every mod you add.',
+	},
+	showNativeBuildNoticeTitle: {
+		id: 'app.behavior-settings.show-native-build-notice.title',
+		defaultMessage: 'Show the native mods build note',
+	},
+	showNativeBuildNoticeDescription: {
+		id: 'app.behavior-settings.show-native-build-notice.description',
+		defaultMessage:
+			"The note above an instance's Oxyra mods saying native mods are compiled before the next launch.",
+	},
 	skipNonEssentialWarningsDescription: {
 		id: 'app.appearance-settings.skip-non-essential-warnings.description',
 		defaultMessage:
@@ -141,6 +159,8 @@ type BehaviorSettingsState = {
 	hideNametag: boolean
 	warnOnUnknownModpacks: boolean
 	skipNonEssentialWarnings: boolean
+	askBeforeNativeMods: boolean
+	showNativeBuildNotice: boolean
 }
 
 const settingsQuery = useQuery(appSettingsQueryOptions())
@@ -155,6 +175,8 @@ function getBehaviorSettingsState(settings: AppSettings): BehaviorSettingsState 
 		showPlayTime: settings.show_play_time,
 		warnOnUnknownModpacks: settings.warn_on_unknown_modpacks,
 		skipNonEssentialWarnings: settings.skip_non_essential_warnings,
+		askBeforeNativeMods: !settings.feature_flags?.skip_native_mod_trust,
+		showNativeBuildNotice: !settings.feature_flags?.hide_native_build_notice,
 		hideRightSidebar: settings.toggle_sidebar,
 		hideNametag: settings.hide_nametag_skins_page,
 	}
@@ -191,6 +213,11 @@ const settingsMutation = useMutation({
 			show_play_time: value.showPlayTime,
 			warn_on_unknown_modpacks: value.warnOnUnknownModpacks,
 			skip_non_essential_warnings: value.skipNonEssentialWarnings,
+			feature_flags: {
+				...latestSettings.feature_flags,
+				skip_native_mod_trust: !value.askBeforeNativeMods,
+				hide_native_build_notice: !value.showNativeBuildNotice,
+			},
 		}
 
 		await set(nextSettings)
@@ -201,6 +228,8 @@ const settingsMutation = useMutation({
 		appSettings.showPlayTime = value.showPlayTime
 		appSettings.warnOnUnknownModpacks = value.warnOnUnknownModpacks
 		appSettings.skipNonEssentialWarnings = value.skipNonEssentialWarnings
+		appSettings.featureFlags.skip_native_mod_trust = !value.askBeforeNativeMods
+		appSettings.featureFlags.hide_native_build_notice = !value.showNativeBuildNotice
 		appSettings.toggleSidebar = value.hideRightSidebar
 		appSettings.hideNametagSkinsPage = value.hideNametag
 	},
@@ -383,6 +412,30 @@ onBeforeUnmount(() => {
 					</p>
 				</div>
 				<Toggle id="skip-non-essential-warnings" v-model="current.skipNonEssentialWarnings" />
+			</div>
+
+			<div class="flex items-center justify-between gap-4">
+				<div>
+					<h3 class="m-0 text-lg font-semibold text-contrast">
+						{{ formatMessage(messages.askBeforeNativeModsTitle) }}
+					</h3>
+					<p class="m-0 mt-1">
+						{{ formatMessage(messages.askBeforeNativeModsDescription) }}
+					</p>
+				</div>
+				<Toggle id="ask-before-native-mods" v-model="current.askBeforeNativeMods" />
+			</div>
+
+			<div class="flex items-center justify-between gap-4">
+				<div>
+					<h3 class="m-0 text-lg font-semibold text-contrast">
+						{{ formatMessage(messages.showNativeBuildNoticeTitle) }}
+					</h3>
+					<p class="m-0 mt-1">
+						{{ formatMessage(messages.showNativeBuildNoticeDescription) }}
+					</p>
+				</div>
+				<Toggle id="show-native-build-notice" v-model="current.showNativeBuildNotice" />
 			</div>
 		</div>
 	</section>

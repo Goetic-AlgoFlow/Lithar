@@ -351,7 +351,12 @@ const effectiveLoaders = computed(() => {
 		return ctx.projectInstall.value.compatibleLoaders
 	}
 	if (ctx.flowType === 'instance') {
-		return ['vanilla', ...ctx.availableLoaders.filter((l) => l !== 'vanilla'), 'horizon']
+		return [
+			'vanilla',
+			...ctx.availableLoaders.filter((l) => l !== 'vanilla'),
+			'horizon',
+			'horizon_official',
+		]
 	}
 	if (ctx.flowType === 'server-onboarding' || ctx.flowType === 'reset-server') {
 		return ctx.availableLoaders.filter((l) => l !== 'vanilla')
@@ -434,6 +439,7 @@ const paperVersions = ref<Record<string, Paper.Versions.v3.Build[]>>({})
 const purpurVersions = ref<Record<string, string[]>>({})
 
 function toApiLoaderName(loader: string): string {
+	if (loader === 'horizon_official') return 'horizon'
 	return loader === 'neoforge' ? 'neo' : loader
 }
 

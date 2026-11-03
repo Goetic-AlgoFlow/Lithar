@@ -296,17 +296,11 @@
   "app.horizon-mods.content": {
     "message": "Контент"
   },
-  "app.horizon-mods.description": {
-    "message": "Моды, созданные для Oxyra, из реестра Oxyra. Моды Java в Oxyra не работают. После изменений перезапустите игру."
-  },
   "app.horizon-mods.file-filter": {
     "message": "Моды Oxyra"
   },
   "app.horizon-mods.install": {
     "message": "Установить"
-  },
-  "app.horizon-mods.install-file": {
-    "message": "Установить из файла"
   },
   "app.horizon-mods.installed": {
     "message": "Установлено"
@@ -320,20 +314,8 @@
   "app.horizon-mods.native-notice": {
     "message": "Нативные моды компилируются в игру этой сборки перед следующим запуском. Первая сборка загружает Rust и занимает 20–30 минут; следующие проходят быстрее."
   },
-  "app.horizon-mods.none": {
-    "message": "Моды Oxyra ещё не установлены."
-  },
-  "app.horizon-mods.remove": {
-    "message": "Удалить"
-  },
-  "app.horizon-mods.requires": {
-    "message": "Требует: {mods}"
-  },
   "app.horizon-mods.source": {
     "message": "Исходный код"
-  },
-  "app.horizon-mods.title": {
-    "message": "Моды Oxyra"
   },
   "app.horizon-mods.trust.description": {
     "message": "**{name}** — нативный код: он не изолирован и работает с полным доступом к этому компьютеру. Реестр Oxyra проверил его перед публикацией, но если сомневаетесь, прочитайте его исходный код. Он будет скомпилирован в игру этой сборки перед следующим запуском."
@@ -349,9 +331,6 @@
   },
   "app.horizon-mods.unsigned": {
     "message": "Без подписи"
-  },
-  "app.horizon-mods.update": {
-    "message": "Обновить до {version}"
   },
   "lithar.app.settings.external-auth-libraries.description": {
     "message": "Выберите и установите библиотеку аутентификации, которая используется при запуске Minecraft с внешним профилем игрока."
@@ -1675,9 +1654,6 @@
   },
   "app.nav.modrinth-account": {
     "message": "Аккаунт Modrinth"
-  },
-  "app.nav.modrinth-hosting": {
-    "message": "Modrinth Hosting"
   },
   "app.nav.remove-account": {
     "message": "Удалить аккаунт"
@@ -3413,6 +3389,45 @@
   "app.settings.tabs.privacy": {
     "message": "Конфиденциальность"
   },
+  "app.settings.options-profiles.title": {
+    "message": "Профили настроек"
+  },
+  "app.settings.options-profiles.description": {
+    "message": "Сохраните настройки и назначения клавиш, затем примените их ко всем сборкам, которые синхронизируют настройки игры. Каждая настройка преобразуется под версию Minecraft сборки; настройки, которых нет в версии, пропускаются."
+  },
+  "app.settings.options-profiles.empty": {
+    "message": "Профилей пока нет."
+  },
+  "app.settings.options-profiles.details": {
+    "message": "Minecraft {version} · настроек: {settings}"
+  },
+  "app.settings.options-profiles.apply": {
+    "message": "Применить к сборкам"
+  },
+  "app.settings.options-profiles.applied": {
+    "message": "Применено к сборкам: {applied}. {deferred, plural, =0 {} other {Ещё # получат его после закрытия.}}"
+  },
+  "app.settings.options-profiles.delete": {
+    "message": "Удалить профиль"
+  },
+  "app.settings.options-profiles.name": {
+    "message": "Название профиля"
+  },
+  "app.settings.options-profiles.from-instance": {
+    "message": "Из сборки"
+  },
+  "app.settings.options-profiles.save": {
+    "message": "Сохранить из сборки"
+  },
+  "app.settings.options-profiles.import": {
+    "message": "Импортировать options.txt…"
+  },
+  "app.settings.options-profiles.version": {
+    "message": "Версия Minecraft этого файла"
+  },
+  "app.settings.options-profiles.confirm-import": {
+    "message": "Импортировать"
+  },
   "app.sidebar.playing-as": {
     "message": "Сейчас играет"
   },
@@ -4892,10 +4907,163 @@
   "lithar.app.settings.credits.notice": {
     "message": "Не является официальным продуктом Minecraft. Не одобрено и не связано с Mojang или Microsoft."
   },
-  "app.horizon-mods.browse-shaders": {
-    "message": "Шейдеры"
+  "app.local-servers.title": {
+    "message": "Локальные серверы"
   },
-  "app.horizon-mods.browse-resource-packs": {
-    "message": "Наборы ресурсов"
+  "app.local-servers.network": {
+    "message": "Сеть"
+  },
+  "app.local-servers.radmin-address": {
+    "message": "Адрес Radmin VPN:"
+  },
+  "app.local-servers.radmin-join": {
+    "message": "Друзья из вашей сети Radmin подключаются по нему."
+  },
+  "app.local-servers.radmin-offline": {
+    "message": "Radmin VPN установлен, но не подключён: откройте его и войдите в сеть или создайте её."
+  },
+  "app.local-servers.radmin-missing": {
+    "message": "Radmin VPN не установлен. Скачайте его с radmin-vpn.com, создайте сеть и сообщите друзьям её имя и пароль."
+  },
+  "app.local-servers.local-network": {
+    "message": "Локальная сеть: {addresses}"
+  },
+  "app.local-servers.your-servers": {
+    "message": "Ваши серверы"
+  },
+  "app.local-servers.share-address": {
+    "message": "Поделитесь этим адресом:"
+  },
+  "app.local-servers.oxyra-mods": {
+    "message": "Запускается новейшая сборка Oxyra: встроенные в неё нативные моды работают и на сервере."
+  },
+  "app.local-servers.plugins-hint": {
+    "message": "Добавьте плагины в папку plugins и перезапустите сервер."
+  },
+  "app.local-servers.start": {
+    "message": "Запустить"
+  },
+  "app.local-servers.stop": {
+    "message": "Остановить"
+  },
+  "app.local-servers.open-folder": {
+    "message": "Открыть папку"
+  },
+  "app.local-servers.delete": {
+    "message": "Удалить"
+  },
+  "app.local-servers.delete-confirm": {
+    "message": "Удалить {name} и его миры? Это нельзя отменить."
+  },
+  "app.local-servers.console-placeholder": {
+    "message": "Команда консоли"
+  },
+  "app.local-servers.send": {
+    "message": "Отправить"
+  },
+  "app.local-servers.new-server": {
+    "message": "Новый сервер"
+  },
+  "app.local-servers.name": {
+    "message": "Название"
+  },
+  "app.local-servers.software": {
+    "message": "Сервер"
+  },
+  "app.local-servers.version": {
+    "message": "Версия"
+  },
+  "app.local-servers.port": {
+    "message": "Порт"
+  },
+  "app.local-servers.memory": {
+    "message": "Память (МБ)"
+  },
+  "app.local-servers.max-players": {
+    "message": "Максимум игроков"
+  },
+  "app.local-servers.motd": {
+    "message": "Сообщение дня"
+  },
+  "app.local-servers.online-mode": {
+    "message": "Проверять аккаунты через Mojang (online mode)"
+  },
+  "app.local-servers.whitelist": {
+    "message": "Только белый список"
+  },
+  "app.local-servers.eula": {
+    "message": "Я принимаю EULA Minecraft (aka.ms/MinecraftEULA)"
+  },
+  "app.local-servers.setting-up": {
+    "message": "Настройка…"
+  },
+  "app.local-servers.create": {
+    "message": "Создать сервер"
+  },
+  "app.local-servers.default-motd": {
+    "message": "Сервер Lithar"
+  },
+  "app.nav.local-servers": {
+    "message": "Локальные серверы"
+  },
+  "app.local-servers.firewall": {
+    "message": "При первом запуске сервера Windows спросит, пропустить ли его через брандмауэр: разрешите и для общественных сетей, так как Windows часто считает сеть Radmin VPN общественной."
+  },
+  "app.local-servers.all-servers": {
+    "message": "Все серверы"
+  },
+  "app.local-servers.none": {
+    "message": "Серверов пока нет: создайте его ниже."
+  },
+  "app.local-servers.running": {
+    "message": "Работает"
+  },
+  "app.local-servers.stopped": {
+    "message": "Остановлен"
+  },
+  "app.local-servers.restart": {
+    "message": "Перезапустить"
+  },
+  "app.local-servers.console": {
+    "message": "Консоль"
+  },
+  "app.local-servers.settings": {
+    "message": "Настройки"
+  },
+  "app.local-servers.save": {
+    "message": "Сохранить"
+  },
+  "app.local-servers.saved": {
+    "message": "Сохранено."
+  },
+  "app.local-servers.restart-to-apply": {
+    "message": "Сервер работает: перезапустите его, чтобы применить новые настройки."
+  },
+  "app.local-servers.console-empty": {
+    "message": "Запустите сервер, чтобы увидеть его консоль."
+  },
+  "app.local-servers.console-hint": {
+    "message": "Стрелки вверх и вниз: предыдущие команды."
+  },
+  "app.local-servers.not-found": {
+    "message": "Сервера с именем {name} нет."
+  },
+  "app.horizon-mods.trust.dont-ask": {
+    "message": "Больше не спрашивать для нативных модов (снова включается в Настройки > Поведение)"
+  },
+  "app.horizon-mods.content-type": {
+    "message": "контент"
+  },
+  "app.behavior-settings.ask-before-native-mods.title": {
+    "message": "Спрашивать перед установкой нативных модов"
+  },
+  "app.behavior-settings.ask-before-native-mods.description": {
+    "message": "Нативные моды Oxyra работают с полным доступом к этому компьютеру. Если выключить, они устанавливаются без вопроса: делайте так, только если доверяете каждому добавляемому моду."
+  },
+  "app.behavior-settings.show-native-build-notice.title": {
+    "message": "Показывать заметку о сборке нативных модов"
+  },
+  "app.behavior-settings.show-native-build-notice.description": {
+    "message": "Заметка над модами Oxyra в сборке о том, что нативные моды компилируются перед следующим запуском."
   }
 }

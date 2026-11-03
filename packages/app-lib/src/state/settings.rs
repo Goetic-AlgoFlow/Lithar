@@ -105,6 +105,10 @@ pub enum FeatureFlag {
     ServerProjectQa,
     I18nDebug,
     LocalhostSignIn,
+    /// The player turned off the trust question before a native mod installs.
+    SkipNativeModTrust,
+    /// The player hid the note on native mods' build time in an instance's mods.
+    HideNativeBuildNotice,
 }
 
 impl Settings {

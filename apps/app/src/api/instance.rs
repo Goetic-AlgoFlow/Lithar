@@ -75,6 +75,12 @@ pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
             instance_get_initialized_synced_options,
             instance_set_global_synced_option,
             instance_list_game_options_sync_sources,
+            instance_list_game_options_profiles,
+            instance_save_game_options_profile,
+            instance_import_game_options_profile,
+            instance_guess_game_options_profile_version,
+            instance_apply_game_options_profile,
+            instance_delete_game_options_profile,
             instance_get_synced_game_options_config,
             instance_get_game_setting_locale_labels,
             instance_preview_synced_game_option_changes,
@@ -742,8 +748,12 @@ pub async fn instance_horizon_mod_set_enabled(
     enabled: bool,
 ) -> Result<()> {
     Ok(
-        theseus::instance::horizon_mod_set_enabled(instance_id, mod_id, enabled)
-            .await?,
+        theseus::instance::horizon_mod_set_enabled(
+            instance_id,
+            mod_id,
+            enabled,
+        )
+        .await?,
     )
 }
 
@@ -938,6 +948,56 @@ pub async fn instance_set_global_synced_option(
 pub async fn instance_list_game_options_sync_sources()
 -> Result<Vec<theseus::instance::GameOptionsSourceCandidate>> {
     Ok(theseus::instance::list_game_options_sync_sources().await?)
+}
+
+#[tauri::command]
+pub async fn instance_list_game_options_profiles()
+-> Result<Vec<theseus::instance::GameOptionsProfile>> {
+    Ok(theseus::instance::list_game_options_profiles().await?)
+}
+
+#[tauri::command]
+pub async fn instance_save_game_options_profile(
+    name: String,
+    instance_id: String,
+) -> Result<theseus::instance::GameOptionsProfile> {
+    Ok(
+        theseus::instance::save_game_options_profile(&name, &instance_id)
+            .await?,
+    )
+}
+
+#[tauri::command]
+pub async fn instance_import_game_options_profile(
+    name: String,
+    path: PathBuf,
+    game_version: String,
+) -> Result<theseus::instance::GameOptionsProfile> {
+    Ok(theseus::instance::import_game_options_profile(
+        &name,
+        &path,
+        &game_version,
+    )
+    .await?)
+}
+
+#[tauri::command]
+pub async fn instance_guess_game_options_profile_version(
+    path: PathBuf,
+) -> Result<Option<String>> {
+    Ok(theseus::instance::guess_game_options_profile_version(&path))
+}
+
+#[tauri::command]
+pub async fn instance_apply_game_options_profile(
+    id: String,
+) -> Result<theseus::instance::SaveGameSettingsResult> {
+    Ok(theseus::instance::apply_game_options_profile(&id).await?)
+}
+
+#[tauri::command]
+pub async fn instance_delete_game_options_profile(id: String) -> Result<()> {
+    Ok(theseus::instance::delete_game_options_profile(&id).await?)
 }
 
 #[tauri::command]

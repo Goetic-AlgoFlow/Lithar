@@ -85,6 +85,25 @@ fn main() {
                     ),
             )
             .plugin(
+                "local-servers",
+                InlinedPlugin::new()
+                    .commands(&[
+                        "local_servers_list",
+                        "local_servers_versions",
+                        "local_servers_save",
+                        "local_servers_start",
+                        "local_servers_stop",
+                        "local_servers_command",
+                        "local_servers_status",
+                        "local_servers_delete",
+                        "local_servers_network",
+                        "local_servers_folder",
+                    ])
+                    .default_permission(
+                        DefaultPermissionRule::AllowAllCommands,
+                    ),
+            )
+            .plugin(
                 "logs",
                 InlinedPlugin::new()
                     .commands(&[
@@ -255,6 +274,12 @@ fn main() {
                         "instance_get_initialized_synced_options",
                         "instance_set_global_synced_option",
                         "instance_list_game_options_sync_sources",
+                        "instance_list_game_options_profiles",
+                        "instance_save_game_options_profile",
+                        "instance_import_game_options_profile",
+                        "instance_guess_game_options_profile_version",
+                        "instance_apply_game_options_profile",
+                        "instance_delete_game_options_profile",
                         "instance_get_synced_game_options_config",
                         "instance_get_game_setting_locale_labels",
                         "instance_preview_synced_game_option_changes",

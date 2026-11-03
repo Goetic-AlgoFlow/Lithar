@@ -14,41 +14,8 @@ export default new createRouter({
 			},
 		},
 		{
-			path: '/hosting/manage/',
-			name: 'Servers',
-			component: () => import('@/pages/Servers.vue'),
-		},
-		{
-			path: '/hosting/manage/:id',
-			name: 'ServerManage',
-			component: () => import('@/pages/hosting/manage/Index.vue'),
-			children: [
-				{
-					path: '',
-					name: 'ServerManageOverview',
-					component: () => import('@/pages/hosting/manage/Overview.vue'),
-				},
-				{
-					path: 'content',
-					name: 'ServerManageContent',
-					component: () => import('@/pages/hosting/manage/Content.vue'),
-				},
-				{
-					path: 'files',
-					name: 'ServerManageFiles',
-					component: () => import('@/pages/hosting/manage/Files.vue'),
-				},
-				{
-					path: 'backups',
-					name: 'ServerManageBackups',
-					component: () => import('@/pages/hosting/manage/Backups.vue'),
-				},
-				{
-					path: 'access',
-					name: 'ServerManageAccess',
-					component: () => import('@/pages/hosting/manage/Access.vue'),
-				},
-			],
+			path: '/hosting/:rest(.*)*',
+			redirect: '/local-servers',
 		},
 		{
 			path: '/browse/:projectType',
@@ -57,6 +24,21 @@ export default new createRouter({
 			meta: {
 				saveScroll: true,
 			},
+		},
+		{
+			path: '/local-servers',
+			name: 'Local servers',
+			component: () => import('@/pages/local-servers/Index.vue'),
+		},
+		{
+			path: '/local-servers/:name',
+			name: 'Local server',
+			component: () => import('@/pages/local-servers/Server.vue'),
+		},
+		{
+			path: '/local-servers/:name/settings',
+			name: 'Local server settings',
+			component: () => import('@/pages/local-servers/Server.vue'),
 		},
 		{
 			path: '/skins',

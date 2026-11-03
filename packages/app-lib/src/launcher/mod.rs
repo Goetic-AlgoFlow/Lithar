@@ -617,6 +617,7 @@ async fn install_minecraft_inner(
             loading_bar.as_ref(),
             reporter.as_ref(),
             &phase_details,
+            horizon::is_official(content_set.loader_version.as_deref()),
         )
         .await?;
     }
@@ -1081,6 +1082,9 @@ pub async fn launch_minecraft(
         }
         None => Command::new(&program),
     };
+    if horizon {
+        horizon::hide_console(&mut command);
+    }
 
     let env_args = Vec::from(env_args);
 

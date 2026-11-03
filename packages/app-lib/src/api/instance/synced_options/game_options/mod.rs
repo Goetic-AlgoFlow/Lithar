@@ -28,6 +28,7 @@ mod local_settings_editor;
 mod locales;
 mod options_file;
 mod pack_updates;
+mod profiles;
 mod read_instance_changes;
 mod resource_pack_options;
 mod settings_editor;
@@ -55,6 +56,10 @@ pub(crate) use locales::{
 };
 pub use locales::{GameSettingLocaleLabels, get_game_setting_locale_labels};
 pub use pack_updates::{GameOptionsPackSource, capture_pack_base};
+pub use profiles::{
+    GameOptionsProfile, apply_profile, delete_profile, guess_profile_version,
+    import_profile, list_profiles, save_profile_from_instance,
+};
 pub use settings_editor::{get_config, preview_changes, save_changes};
 pub use source_selection::list_sync_sources;
 

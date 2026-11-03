@@ -1,21 +1,16 @@
 <script setup lang="ts">
-import {
-	DownloadIcon,
-	ExternalIcon,
-	FolderOpenIcon,
-	ImageIcon,
-	PaintbrushIcon,
-	SpinnerIcon,
-	TrashIcon,
-} from '@modrinth/assets'
+import { DownloadIcon, ExternalIcon, SpinnerIcon } from '@modrinth/assets'
 import {
 	Admonition,
 	Avatar,
 	Button,
+	Checkbox,
 	ConfirmModal,
+	ContentCardLayout as ContentPageLayout,
+	type ContentItem,
 	defineMessages,
 	injectNotificationManager,
-	Toggle,
+	provideContentManager,
 	useVIntl,
 } from '@modrinth/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
@@ -24,24 +19,32 @@ import { openUrl } from '@tauri-apps/plugin-opener'
 import { computed, ref, useTemplateRef } from 'vue'
 
 import {
+	get_content_items,
 	get_horizon_mods,
 	type HorizonMod,
 	install_horizon_mod,
 	install_horizon_mod_file,
 	remove_horizon_mod,
+	remove_project,
 	set_horizon_mod_enabled,
 } from '@/helpers/instance'
+import { useAppSettings } from '@/composables/use-app-settings.ts'
 import { injectInstancePage } from '@/pages/instance/instance-context'
+
+import { trustMessages } from './horizon-trust-messages'
+import { nativeTrustSkipped, skipNativeTrust } from './native-trust'
 
 const props = defineProps<{ instanceId: string }>()
 const instancePage = injectInstancePage()
+const appSettings = useAppSettings()
 
 const { formatMessage } = useVIntl()
 const { handleError } = injectNotificationManager()
 const queryClient = useQueryClient()
 const trustModal = useTemplateRef('trustModal')
 const pendingNative = ref<HorizonMod | null>(null)
-const pendingFile = ref<string | null>(null)
+const pendingFiles = ref<string[]>([])
+const dontAsk = ref(false)
 const busy = ref<string | null>(null)
 
 const queryKey = computed(() => ['instance', props.instanceId, 'horizon-mods'])
@@ -53,6 +56,17 @@ const modsQuery = useQuery({
 const installed = computed(() => (modsQuery.data.value ?? []).filter((m) => m.installed_version))
 const available = computed(() => (modsQuery.data.value ?? []).filter((m) => !m.installed_version))
 
+// Shaders and resource packs installed from Discover: Oxyra reads them from the instance's folders.
+const packsKey = computed(() => ['instance', props.instanceId, 'horizon-packs'])
+const packsQuery = useQuery({
+	queryKey: packsKey,
+	queryFn: () => get_content_items(props.instanceId),
+})
+const packs = computed(() =>
+	(packsQuery.data.value ?? []).filter((item) =>
+		['shader', 'shaderpack', 'resourcepack'].includes(item.project_type),
+	),
+)
 const action = useMutation({
 	mutationFn: async (run: () => Promise<void>) => await run(),
 	onSettled: () => {
@@ -69,7 +83,12 @@ function run(mod: HorizonMod, task: () => Promise<void>) {
 
 function install(mod: HorizonMod) {
 	if (mod.kind === 'native-mod') {
+		if (nativeTrustSkipped()) {
+			run(mod, () => install_horizon_mod(props.instanceId, mod.id, true))
+			return
+		}
 		pendingNative.value = mod
+		dontAsk.value = false
 		trustModal.value?.show()
 		return
 	}
@@ -77,61 +96,159 @@ function install(mod: HorizonMod) {
 }
 
 function installTrusted() {
+	if (dontAsk.value) skipNativeTrust().catch(handleError)
 	const mod = pendingNative.value
-	const file = pendingFile.value
+	const files = pendingFiles.value
 	pendingNative.value = null
-	pendingFile.value = null
+	pendingFiles.value = []
 	if (mod) run(mod, () => install_horizon_mod(props.instanceId, mod.id, true))
-	if (file) installFile(file, true)
+	if (files.length > 0) installFiles(files, true)
 }
 
-function installFile(path: string, trustNativeCode: boolean) {
-	busy.value = path
+/** Installs `paths` one after the other; one that fails doesn't stop the others. */
+function installFiles(paths: string[], trustNativeCode: boolean) {
+	busy.value = paths[0]
 	action.mutate(async () => {
-		await install_horizon_mod_file(props.instanceId, path, trustNativeCode)
+		for (const path of paths) {
+			await install_horizon_mod_file(props.instanceId, path, trustNativeCode).catch(handleError)
+		}
 	})
 }
 
 async function pickFile() {
-	const path = await open({
-		multiple: false,
+	const picked = await open({
+		multiple: true,
 		filters: [{ name: formatMessage(messages.fileFilter), extensions: ['hmod', 'oxmod', 'hnmod'] }],
 	})
-	if (typeof path !== 'string') return
-	if (/\.(oxmod|hnmod)$/i.test(path)) {
-		pendingFile.value = path
-		trustModal.value?.show()
+	const paths = (Array.isArray(picked) ? picked : [picked]).filter(
+		(path): path is string => typeof path === 'string',
+	)
+	const native = paths.filter((path) => /\.(oxmod|hnmod)$/i.test(path))
+	const plain = paths.filter((path) => !native.includes(path))
+	if (plain.length > 0) installFiles(plain, false)
+	if (native.length === 0) return
+	if (nativeTrustSkipped()) {
+		installFiles(native, true)
 		return
 	}
-	installFile(path, false)
+	pendingFiles.value = native
+	dontAsk.value = false
+	trustModal.value?.show()
 }
 
+/** An installed Oxyra mod's row id, apart from the shaders' and resource packs' file ids. */
+const MOD_ROW = 'oxyra-mod:'
+const modOf = (item: ContentItem) => installed.value.find((m) => MOD_ROW + m.id === item.id)
+
+function modItem(mod: HorizonMod): ContentItem {
+	const outdated = mod.installed_version !== mod.latest_version
+	const item: ContentItem = {
+		id: MOD_ROW + mod.id,
+		file_name: mod.id,
+		project_type: 'mod',
+		enabled: mod.enabled,
+		has_update: outdated,
+		update_version_id: outdated ? mod.latest_version : null,
+		project: { id: mod.id, slug: mod.id, title: mod.name, icon_url: mod.icon ?? undefined },
+		version: {
+			id: mod.installed_version ?? '',
+			version_number: mod.installed_version ?? '',
+			file_name: mod.id,
+		},
+	}
+	return item
+}
+
+const items = computed<ContentItem[]>(() => [...installed.value.map(modItem), ...packs.value])
+
+/** Runs `task` for the row `id`, then reloads the mods and the packs. */
+async function act(id: string, task: () => Promise<unknown>) {
+	busy.value = id
+	try {
+		await task()
+	} catch (error) {
+		handleError(error as Error)
+	} finally {
+		busy.value = null
+		await Promise.all([
+			queryClient.invalidateQueries({ queryKey: queryKey.value }),
+			queryClient.invalidateQueries({ queryKey: packsKey.value }),
+		])
+	}
+}
+
+provideContentManager({
+	items,
+	loading: computed(() => modsQuery.isPending.value || packsQuery.isPending.value),
+	error: computed(() => (modsQuery.error.value as Error | null) ?? null),
+	managedContent: ref(null),
+	isPackLocked: ref(false),
+	isBusy: computed(() => busy.value !== null),
+	contentTypeLabel: computed(() => formatMessage(messages.contentType)),
+	toggleEnabled: async (item) => {
+		const mod = modOf(item)
+		if (mod)
+			await act(mod.id, () => set_horizon_mod_enabled(props.instanceId, mod.id, !mod.enabled))
+	},
+	deleteItem: async (item) => {
+		const mod = modOf(item)
+		if (mod) await act(mod.id, () => remove_horizon_mod(props.instanceId, mod.id))
+		else if (item.file_path) {
+			const path = item.file_path
+			await act(item.id, () => remove_project(props.instanceId, path))
+		}
+	},
+	canToggleItem: (item) => !!modOf(item),
+	refresh: async () => {
+		await Promise.all([modsQuery.refetch(), packsQuery.refetch()])
+	},
+	browse: () => instancePage.browseContent('mod'),
+	uploadFiles: () => void pickFile(),
+	hasUpdateSupport: true,
+	updateItem: (id) => {
+		const mod = installed.value.find((m) => MOD_ROW + m.id === id)
+		if (mod) install(mod)
+	},
+	mapToTableItem: (item) => {
+		const mod = modOf(item)
+		return {
+			id: item.id,
+			project: item.project ?? {
+				id: item.file_name,
+				slug: null,
+				title: item.file_name,
+				icon_url: null,
+			},
+			version: item.version ?? {
+				id: item.file_name,
+				version_number: '',
+				file_name: item.file_name,
+			},
+			external: !mod && !item.project,
+			enabled: mod ? item.enabled : undefined,
+			hideToggle: !mod,
+			hasUpdate: item.has_update,
+		}
+	},
+})
+
 const trustDescription = computed(() =>
-	pendingFile.value
+	pendingFiles.value.length > 0
 		? formatMessage(messages.trustFileDescription, {
-				name: pendingFile.value.split(/[\\/]/).pop() ?? '',
+				name: pendingFiles.value.map((path) => path.split(/[\\/]/).pop() ?? path).join(', '),
 			})
-		: formatMessage(messages.trustDescription, { name: pendingNative.value?.name ?? '' }),
+		: formatMessage(trustMessages.trustDescription, { name: pendingNative.value?.name ?? '' }),
 )
 
 const messages = defineMessages({
-	title: { id: 'app.horizon-mods.title', defaultMessage: 'Oxyra mods' },
-	description: {
-		id: 'app.horizon-mods.description',
-		defaultMessage:
-			"Mods made for Oxyra, from Oxyra's registry. Java mods don't run in Oxyra. Restart the game after a change.",
-	},
-	installed: { id: 'app.horizon-mods.installed', defaultMessage: 'Installed' },
+	contentType: { id: 'app.horizon-mods.content-type', defaultMessage: 'content' },
 	available: { id: 'app.horizon-mods.available', defaultMessage: 'Available' },
-	none: { id: 'app.horizon-mods.none', defaultMessage: 'No Oxyra mod installed yet.' },
 	loadError: {
 		id: 'app.horizon-mods.load-error',
 		defaultMessage: "Oxyra's mod registry could not be reached.",
 	},
 	install: { id: 'app.horizon-mods.install', defaultMessage: 'Install' },
-	remove: { id: 'app.horizon-mods.remove', defaultMessage: 'Remove' },
 	source: { id: 'app.horizon-mods.source', defaultMessage: 'Source' },
-	update: { id: 'app.horizon-mods.update', defaultMessage: 'Update to {version}' },
 	native: { id: 'app.horizon-mods.native', defaultMessage: 'Native' },
 	content: { id: 'app.horizon-mods.content', defaultMessage: 'Content' },
 	unsigned: { id: 'app.horizon-mods.unsigned', defaultMessage: 'Unsigned' },
@@ -141,31 +258,11 @@ const messages = defineMessages({
 		defaultMessage:
 			"Native mods are compiled into this instance's game before its next launch. The first build downloads Rust and takes 20 to 30 minutes; later builds are faster.",
 	},
-	trustTitle: {
-		id: 'app.horizon-mods.trust.title',
-		defaultMessage: 'Trust this native mod?',
-	},
-	trustDescription: {
-		id: 'app.horizon-mods.trust.description',
-		defaultMessage:
-			"**{name}** is native code: it is not sandboxed and runs with full access to this computer. Oxyra's registry reviewed it before listing it, but read its source if you are unsure. It will be compiled into this instance's game before its next launch.",
-	},
-	installFile: { id: 'app.horizon-mods.install-file', defaultMessage: 'Install from file' },
-	browseShaders: { id: 'app.horizon-mods.browse-shaders', defaultMessage: 'Shaders' },
-	browseResourcePacks: {
-		id: 'app.horizon-mods.browse-resource-packs',
-		defaultMessage: 'Resource packs',
-	},
-	requires: { id: 'app.horizon-mods.requires', defaultMessage: 'Requires: {mods}' },
 	fileFilter: { id: 'app.horizon-mods.file-filter', defaultMessage: 'Oxyra mods' },
 	trustFileDescription: {
 		id: 'app.horizon-mods.trust.file-description',
 		defaultMessage:
 			"**{name}** is native code: it is not sandboxed and runs with full access to this computer. It doesn't come from Oxyra's registry, so nobody reviewed it: install it only if you trust where it comes from. It will be compiled into this instance's game before its next launch.",
-	},
-	trustProceed: {
-		id: 'app.horizon-mods.trust.proceed',
-		defaultMessage: 'I trust this mod: install',
 	},
 })
 </script>
@@ -174,133 +271,65 @@ const messages = defineMessages({
 	<div class="flex flex-col gap-4">
 		<ConfirmModal
 			ref="trustModal"
-			:title="formatMessage(messages.trustTitle)"
+			:title="formatMessage(trustMessages.trustTitle)"
 			:description="trustDescription"
-			:proceed-label="formatMessage(messages.trustProceed)"
+			:proceed-label="formatMessage(trustMessages.trustProceed)"
 			@proceed="installTrusted"
-		/>
-		<div class="flex items-start gap-3">
-			<div class="flex flex-1 flex-col gap-1">
-				<h2 class="m-0 text-xl font-bold text-contrast">{{ formatMessage(messages.title) }}</h2>
-				<p class="m-0 text-secondary">{{ formatMessage(messages.description) }}</p>
-			</div>
-			<Button @click="instancePage.browseContent('shader')">
-				<PaintbrushIcon />
-				{{ formatMessage(messages.browseShaders) }}
-			</Button>
-			<Button @click="instancePage.browseContent('resourcepack')">
-				<ImageIcon />
-				{{ formatMessage(messages.browseResourcePacks) }}
-			</Button>
-			<Button :disabled="busy !== null" @click="pickFile">
-				<FolderOpenIcon />
-				{{ formatMessage(messages.installFile) }}
-			</Button>
-		</div>
+		>
+			<Checkbox v-model="dontAsk" :label="formatMessage(trustMessages.trustDontAsk)" />
+		</ConfirmModal>
 		<Admonition v-if="modsQuery.isError.value" type="critical">
 			{{ formatMessage(messages.loadError) }}
 		</Admonition>
-		<div v-else-if="modsQuery.isPending.value" class="flex justify-center p-8">
-			<SpinnerIcon class="h-8 w-8 animate-spin" />
-		</div>
-		<template v-else>
-			<Admonition v-if="installed.some((m) => m.kind === 'native-mod')" type="info">
-				{{ formatMessage(messages.nativeNotice) }}
-			</Admonition>
-			<section class="flex flex-col gap-2">
-				<h3 class="m-0 text-lg font-semibold text-contrast">
-					{{ formatMessage(messages.installed) }}
-				</h3>
-				<p v-if="installed.length === 0" class="m-0 text-secondary">
-					{{ formatMessage(messages.none) }}
-				</p>
-				<div
-					v-for="mod in installed"
-					:key="mod.id"
-					class="flex items-center gap-3 rounded-2xl bg-bg-raised p-3"
-				>
-					<Avatar :src="mod.icon ?? undefined" size="48px" :alt="mod.name" />
-					<div class="flex min-w-0 flex-1 flex-col">
-						<span class="font-semibold text-contrast">
-							{{ mod.name }}
-							<span class="text-sm font-normal text-secondary">
-								{{ mod.installed_version }}
-								·
-								{{ formatMessage(mod.kind === 'native-mod' ? messages.native : messages.content) }}
-							</span>
+		<Admonition
+			v-if="
+				!appSettings.getFeatureFlag('hide_native_build_notice') &&
+				installed.some((m) => m.kind === 'native-mod')
+			"
+			type="info"
+		>
+			{{ formatMessage(messages.nativeNotice) }}
+		</Admonition>
+		<ContentPageLayout />
+		<section v-if="available.length > 0" class="flex flex-col gap-2">
+			<h3 class="m-0 text-lg font-semibold text-contrast">
+				{{ formatMessage(messages.available) }}
+			</h3>
+			<div
+				v-for="mod in available"
+				:key="mod.id"
+				class="flex items-center gap-3 rounded-2xl bg-bg-raised p-3"
+			>
+				<Avatar :src="mod.icon ?? undefined" size="48px" :alt="mod.name" />
+				<div class="flex min-w-0 flex-1 flex-col">
+					<span class="font-semibold text-contrast">
+						{{ mod.name }}
+						<span class="text-sm font-normal text-secondary">
+							{{ mod.latest_version }}
+							·
+							{{ formatMessage(mod.kind === 'native-mod' ? messages.native : messages.content) }}
+							<template v-if="!mod.signed"> · {{ formatMessage(messages.unsigned) }}</template>
 						</span>
-						<span class="truncate text-sm text-secondary">{{ mod.summary }}</span>
-						<span v-if="mod.requires.length > 0" class="text-sm text-secondary">
-							{{ formatMessage(messages.requires, { mods: mod.requires.join(', ') }) }}
-						</span>
-					</div>
-					<Button
-						v-if="mod.installed_version !== mod.latest_version"
-						:disabled="busy !== null"
-						@click="install(mod)"
-					>
-						<DownloadIcon />
-						{{ formatMessage(messages.update, { version: mod.latest_version }) }}
-					</Button>
-					<Toggle
-						:model-value="mod.enabled"
-						:disabled="busy !== null"
-						:aria-label="mod.name"
-						@update:model-value="
-							run(mod, () => set_horizon_mod_enabled(instanceId, mod.id, $event ?? false))
-						"
-					/>
-					<Button
-						icon-only
-						:disabled="busy !== null"
-						:aria-label="formatMessage(messages.remove)"
-						@click="run(mod, () => remove_horizon_mod(instanceId, mod.id))"
-					>
-						<SpinnerIcon v-if="busy === mod.id" class="animate-spin" />
-						<TrashIcon v-else />
-					</Button>
+					</span>
+					<span class="truncate text-sm text-secondary">{{ mod.summary }}</span>
+					<span v-if="mod.authors.length" class="text-xs text-secondary">
+						{{ formatMessage(messages.by, { authors: mod.authors.join(', ') }) }}
+					</span>
 				</div>
-			</section>
-			<section class="flex flex-col gap-2">
-				<h3 class="m-0 text-lg font-semibold text-contrast">
-					{{ formatMessage(messages.available) }}
-				</h3>
-				<div
-					v-for="mod in available"
-					:key="mod.id"
-					class="flex items-center gap-3 rounded-2xl bg-bg-raised p-3"
+				<Button
+					v-if="mod.source"
+					icon-only
+					:aria-label="formatMessage(messages.source)"
+					@click="openUrl(mod.source)"
 				>
-					<Avatar :src="mod.icon ?? undefined" size="48px" :alt="mod.name" />
-					<div class="flex min-w-0 flex-1 flex-col">
-						<span class="font-semibold text-contrast">
-							{{ mod.name }}
-							<span class="text-sm font-normal text-secondary">
-								{{ mod.latest_version }}
-								·
-								{{ formatMessage(mod.kind === 'native-mod' ? messages.native : messages.content) }}
-								<template v-if="!mod.signed"> · {{ formatMessage(messages.unsigned) }}</template>
-							</span>
-						</span>
-						<span class="truncate text-sm text-secondary">{{ mod.summary }}</span>
-						<span v-if="mod.authors.length" class="text-xs text-secondary">
-							{{ formatMessage(messages.by, { authors: mod.authors.join(', ') }) }}
-						</span>
-					</div>
-					<Button
-						v-if="mod.source"
-						icon-only
-						:aria-label="formatMessage(messages.source)"
-						@click="openUrl(mod.source)"
-					>
-						<ExternalIcon />
-					</Button>
-					<Button color="brand" :disabled="busy !== null" @click="install(mod)">
-						<SpinnerIcon v-if="busy === mod.id" class="animate-spin" />
-						<DownloadIcon v-else />
-						{{ formatMessage(messages.install) }}
-					</Button>
-				</div>
-			</section>
-		</template>
+					<ExternalIcon />
+				</Button>
+				<Button color="brand" :disabled="busy !== null" @click="install(mod)">
+					<SpinnerIcon v-if="busy === mod.id" class="animate-spin" />
+					<DownloadIcon v-else />
+					{{ formatMessage(messages.install) }}
+				</Button>
+			</div>
+		</section>
 	</div>
 </template>

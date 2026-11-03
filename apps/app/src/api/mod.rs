@@ -4,6 +4,7 @@ use theseus::error_code;
 
 #[macro_use]
 pub mod lithar;
+pub mod local_servers;
 pub mod auth;
 pub mod import;
 pub mod install;

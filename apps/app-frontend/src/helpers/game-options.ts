@@ -189,6 +189,49 @@ export async function list_game_options_sync_sources(): Promise<GameOptionsSourc
 	return await invoke('plugin:instance|instance_list_game_options_sync_sources')
 }
 
+export type GameOptionsProfile = {
+	id: string
+	name: string
+	game_version: string
+	saved_at: number
+	settings: number
+}
+
+export async function list_game_options_profiles(): Promise<GameOptionsProfile[]> {
+	return await invoke('plugin:instance|instance_list_game_options_profiles')
+}
+
+export async function save_game_options_profile(
+	name: string,
+	instanceId: string,
+): Promise<GameOptionsProfile> {
+	return await invoke('plugin:instance|instance_save_game_options_profile', { name, instanceId })
+}
+
+export async function import_game_options_profile(
+	name: string,
+	path: string,
+	gameVersion: string,
+): Promise<GameOptionsProfile> {
+	return await invoke('plugin:instance|instance_import_game_options_profile', {
+		name,
+		path,
+		gameVersion,
+	})
+}
+
+export async function guess_game_options_profile_version(path: string): Promise<string | null> {
+	return await invoke('plugin:instance|instance_guess_game_options_profile_version', { path })
+}
+
+export async function apply_game_options_profile(id: string): Promise<SaveGameSettingsResult> {
+	return await invoke('plugin:instance|instance_apply_game_options_profile', { id })
+}
+
+export async function delete_game_options_profile(id: string): Promise<void> {
+	return await invoke('plugin:instance|instance_delete_game_options_profile', { id })
+}
+
 export async function get_synced_game_options_config(): Promise<GameSettingsEditorState> {
 	return await invoke('plugin:instance|instance_get_synced_game_options_config')
 }

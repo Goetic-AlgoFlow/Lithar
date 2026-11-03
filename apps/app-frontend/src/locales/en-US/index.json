@@ -236,17 +236,11 @@
   "app.horizon-mods.content": {
     "message": "Content"
   },
-  "app.horizon-mods.description": {
-    "message": "Mods made for Oxyra, from Oxyra's registry. Java mods don't run in Oxyra. Restart the game after a change."
-  },
   "app.horizon-mods.file-filter": {
     "message": "Oxyra mods"
   },
   "app.horizon-mods.install": {
     "message": "Install"
-  },
-  "app.horizon-mods.install-file": {
-    "message": "Install from file"
   },
   "app.horizon-mods.installed": {
     "message": "Installed"
@@ -260,20 +254,8 @@
   "app.horizon-mods.native-notice": {
     "message": "Native mods are compiled into this instance's game before its next launch. The first build downloads Rust and takes 20 to 30 minutes; later builds are faster."
   },
-  "app.horizon-mods.none": {
-    "message": "No Oxyra mod installed yet."
-  },
-  "app.horizon-mods.remove": {
-    "message": "Remove"
-  },
-  "app.horizon-mods.requires": {
-    "message": "Requires: {mods}"
-  },
   "app.horizon-mods.source": {
     "message": "Source"
-  },
-  "app.horizon-mods.title": {
-    "message": "Oxyra mods"
   },
   "app.horizon-mods.trust.description": {
     "message": "**{name}** is native code: it is not sandboxed and runs with full access to this computer. Oxyra's registry reviewed it before listing it, but read its source if you are unsure. It will be compiled into this instance's game before its next launch."
@@ -289,9 +271,6 @@
   },
   "app.horizon-mods.unsigned": {
     "message": "Unsigned"
-  },
-  "app.horizon-mods.update": {
-    "message": "Update to {version}"
   },
   "lithar.app.settings.external-auth-libraries.description": {
     "message": "Choose and install the authentication library used when Minecraft starts with an external player profile."
@@ -1648,9 +1627,6 @@
   },
   "app.nav.modrinth-account": {
     "message": "Modrinth account"
-  },
-  "app.nav.modrinth-hosting": {
-    "message": "Modrinth Hosting"
   },
   "app.nav.remove-account": {
     "message": "Remove account"
@@ -3419,6 +3395,45 @@
   "app.settings.troubleshooting.clear-cache.confirm.title": {
     "message": "Clear the app cache?"
   },
+  "app.settings.options-profiles.title": {
+    "message": "Options profiles"
+  },
+  "app.settings.options-profiles.description": {
+    "message": "Save your options and key bindings, then apply them to every instance that syncs its game settings. Each setting is converted for each instance’s Minecraft version; settings a version does not have are left out."
+  },
+  "app.settings.options-profiles.empty": {
+    "message": "No profiles yet."
+  },
+  "app.settings.options-profiles.details": {
+    "message": "Minecraft {version} · {settings} settings"
+  },
+  "app.settings.options-profiles.apply": {
+    "message": "Apply to instances"
+  },
+  "app.settings.options-profiles.applied": {
+    "message": "Applied to {applied} instances. {deferred, plural, =0 {} other {# will get it when they close.}}"
+  },
+  "app.settings.options-profiles.delete": {
+    "message": "Delete profile"
+  },
+  "app.settings.options-profiles.name": {
+    "message": "Profile name"
+  },
+  "app.settings.options-profiles.from-instance": {
+    "message": "From instance"
+  },
+  "app.settings.options-profiles.save": {
+    "message": "Save from instance"
+  },
+  "app.settings.options-profiles.import": {
+    "message": "Import options.txt…"
+  },
+  "app.settings.options-profiles.version": {
+    "message": "Minecraft version of this file"
+  },
+  "app.settings.options-profiles.confirm-import": {
+    "message": "Import"
+  },
   "app.shared-instance-publish.preparing": {
     "message": "Preparing update…"
   },
@@ -4910,10 +4925,163 @@
   "lithar.app.settings.credits.notice": {
     "message": "Not an official Minecraft product. Not approved by or associated with Mojang or Microsoft."
   },
-  "app.horizon-mods.browse-shaders": {
-    "message": "Shaders"
+  "app.local-servers.title": {
+    "message": "Local servers"
   },
-  "app.horizon-mods.browse-resource-packs": {
-    "message": "Resource packs"
+  "app.local-servers.network": {
+    "message": "Network"
+  },
+  "app.local-servers.radmin-address": {
+    "message": "Radmin VPN address:"
+  },
+  "app.local-servers.radmin-join": {
+    "message": "Friends in your Radmin network join with it."
+  },
+  "app.local-servers.radmin-offline": {
+    "message": "Radmin VPN is installed but not connected: open it and join or create a network."
+  },
+  "app.local-servers.radmin-missing": {
+    "message": "Radmin VPN isn't installed. Get it from radmin-vpn.com, create a network and share its name and password with your friends."
+  },
+  "app.local-servers.local-network": {
+    "message": "Local network: {addresses}"
+  },
+  "app.local-servers.your-servers": {
+    "message": "Your servers"
+  },
+  "app.local-servers.share-address": {
+    "message": "Share this address:"
+  },
+  "app.local-servers.oxyra-mods": {
+    "message": "Runs the newest Oxyra build: the native mods compiled into it run on the server too."
+  },
+  "app.local-servers.plugins-hint": {
+    "message": "Add plugins to the plugins folder, then restart the server."
+  },
+  "app.local-servers.start": {
+    "message": "Start"
+  },
+  "app.local-servers.stop": {
+    "message": "Stop"
+  },
+  "app.local-servers.open-folder": {
+    "message": "Open folder"
+  },
+  "app.local-servers.delete": {
+    "message": "Delete"
+  },
+  "app.local-servers.delete-confirm": {
+    "message": "Delete {name} and its worlds? This cannot be undone."
+  },
+  "app.local-servers.console-placeholder": {
+    "message": "Console command"
+  },
+  "app.local-servers.send": {
+    "message": "Send"
+  },
+  "app.local-servers.new-server": {
+    "message": "New server"
+  },
+  "app.local-servers.name": {
+    "message": "Name"
+  },
+  "app.local-servers.software": {
+    "message": "Software"
+  },
+  "app.local-servers.version": {
+    "message": "Version"
+  },
+  "app.local-servers.port": {
+    "message": "Port"
+  },
+  "app.local-servers.memory": {
+    "message": "Memory (MB)"
+  },
+  "app.local-servers.max-players": {
+    "message": "Maximum players"
+  },
+  "app.local-servers.motd": {
+    "message": "Message of the day"
+  },
+  "app.local-servers.online-mode": {
+    "message": "Check accounts with Mojang (online mode)"
+  },
+  "app.local-servers.whitelist": {
+    "message": "Whitelist only"
+  },
+  "app.local-servers.eula": {
+    "message": "I accept the Minecraft EULA (aka.ms/MinecraftEULA)"
+  },
+  "app.local-servers.setting-up": {
+    "message": "Setting up…"
+  },
+  "app.local-servers.create": {
+    "message": "Create server"
+  },
+  "app.local-servers.default-motd": {
+    "message": "A Lithar server"
+  },
+  "app.nav.local-servers": {
+    "message": "Local servers"
+  },
+  "app.local-servers.firewall": {
+    "message": "The first time a server starts, Windows asks to let it through the firewall: allow it on public networks too, since Windows often counts Radmin VPN's network as public."
+  },
+  "app.local-servers.all-servers": {
+    "message": "All servers"
+  },
+  "app.local-servers.none": {
+    "message": "No server yet: make one below."
+  },
+  "app.local-servers.running": {
+    "message": "Running"
+  },
+  "app.local-servers.stopped": {
+    "message": "Stopped"
+  },
+  "app.local-servers.restart": {
+    "message": "Restart"
+  },
+  "app.local-servers.console": {
+    "message": "Console"
+  },
+  "app.local-servers.settings": {
+    "message": "Settings"
+  },
+  "app.local-servers.save": {
+    "message": "Save"
+  },
+  "app.local-servers.saved": {
+    "message": "Saved."
+  },
+  "app.local-servers.restart-to-apply": {
+    "message": "The server is running: restart it to apply the new settings."
+  },
+  "app.local-servers.console-empty": {
+    "message": "Start the server to see its console."
+  },
+  "app.local-servers.console-hint": {
+    "message": "Up and down arrows: previous commands."
+  },
+  "app.local-servers.not-found": {
+    "message": "There is no server named {name}."
+  },
+  "app.horizon-mods.trust.dont-ask": {
+    "message": "Don't ask again for native mods (Settings > Behavior turns it back on)"
+  },
+  "app.horizon-mods.content-type": {
+    "message": "content"
+  },
+  "app.behavior-settings.ask-before-native-mods.title": {
+    "message": "Ask before installing native mods"
+  },
+  "app.behavior-settings.ask-before-native-mods.description": {
+    "message": "Native Oxyra mods run with full access to this computer. Turned off, they install without asking: only do it if you trust every mod you add."
+  },
+  "app.behavior-settings.show-native-build-notice.title": {
+    "message": "Show the native mods build note"
+  },
+  "app.behavior-settings.show-native-build-notice.description": {
+    "message": "The note above an instance's Oxyra mods saying native mods are compiled before the next launch."
   }
 }

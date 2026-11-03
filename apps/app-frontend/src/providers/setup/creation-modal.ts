@@ -160,12 +160,16 @@ export function setupCreationModal(
 			}
 
 			// Custom/vanilla setup
-			const loader = config.hideLoaderChips.value
+			const chip = config.hideLoaderChips.value
 				? 'vanilla'
 				: (config.selectedLoader.value ?? 'vanilla')
-			const loaderVersion = config.hideLoaderVersion.value
-				? null
-				: (config.selectedLoaderVersion.value ?? config.loaderVersionType.value)
+			const official = chip === 'horizon_official'
+			const loader = official ? 'horizon' : chip
+			const loaderVersion = official
+				? 'official'
+				: config.hideLoaderVersion.value
+					? null
+					: (config.selectedLoaderVersion.value ?? config.loaderVersionType.value)
 			const iconPath = config.instanceIconPath.value ?? null
 			const name = config.instanceName.value.trim() || config.autoInstanceName.value
 

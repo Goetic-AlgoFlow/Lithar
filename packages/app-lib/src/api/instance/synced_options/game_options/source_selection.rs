@@ -7,7 +7,7 @@ use super::catalog::*;
 use super::fullscreen::update_app_fullscreen_setting;
 use super::launch_overrides::currently_launcher_owned_keys;
 use super::options_file::{
-    options_path, read_document, validate_raw_key_value,
+    GameOptionsDocument, options_path, read_document, validate_raw_key_value,
 };
 use super::read_instance_changes::custom_setting_id;
 use crate::ErrorKind;
@@ -17,6 +17,7 @@ use crate::state::{
 };
 use anyhow::bail;
 use chrono::Utc;
+use std::collections::HashSet;
 
 /// Uses the selected instance's `options.txt` as the initial shared settings.
 pub(in crate::api::instance) async fn initialize_from_source_instance(
@@ -31,21 +32,39 @@ pub(in crate::api::instance) async fn initialize_from_source_instance(
         ));
     }
     let (document, _) = read_document(&path).await?;
-    let launcher_keys = currently_launcher_owned_keys(metadata);
-    let entries = document.effective_entries();
-    let current_values = load_shared_game_options(&state.pool).await?;
-    let current_preferences = load_game_option_preferences(&state.pool).await?;
-    let (current_revision, _) =
-        load_game_options_sync_state(&state.pool, CATALOG_REVISION).await?;
-    let now = Utc::now().timestamp();
-    let source_version = metadata.applied_content_set.game_version.as_str();
-    let source_id = metadata.instance.id.as_str();
     let locale_snapshot =
         if super::locales::has_localizable_mod_settings(&document) {
             super::locales::capture_observation(metadata, state).await
         } else {
             None
         };
+    seed_shared_settings(
+        state,
+        &document,
+        &currently_launcher_owned_keys(metadata),
+        metadata.applied_content_set.game_version.as_str(),
+        Some((metadata, locale_snapshot.as_deref())),
+    )
+    .await
+}
+
+/// Makes `document`, an `options.txt` written by `source_version`, the shared settings: from a
+/// source instance (`from`, with its locale snapshot), which then takes part in the sync, or
+/// from a saved options profile.
+pub(super) async fn seed_shared_settings(
+    state: &State,
+    document: &GameOptionsDocument,
+    launcher_keys: &HashSet<String>,
+    source_version: &str,
+    from: Option<(&InstanceMetadata, Option<&str>)>,
+) -> crate::Result<()> {
+    let entries = document.effective_entries();
+    let current_values = load_shared_game_options(&state.pool).await?;
+    let current_preferences = load_game_option_preferences(&state.pool).await?;
+    let (current_revision, _) =
+        load_game_options_sync_state(&state.pool, CATALOG_REVISION).await?;
+    let now = Utc::now().timestamp();
+    let source_id = from.map(|(metadata, _)| metadata.instance.id.as_str());
     let mut tx = state.pool.begin_with("BEGIN IMMEDIATE").await?;
     let catalog_revision = CATALOG_REVISION as i64;
 
@@ -59,16 +78,18 @@ pub(in crate::api::instance) async fn initialize_from_source_instance(
     )
     .execute(&mut *tx)
     .await?;
-    sqlx::query!(
-        "
+    if let Some(source_id) = source_id {
+        sqlx::query!(
+            "
 		INSERT INTO instance_sync_preferences (instance_id, feature, enabled)
 		VALUES (?, 'game_options', 1)
 		ON CONFLICT(instance_id, feature) DO UPDATE SET enabled = 1
 		",
-        source_id,
-    )
-    .execute(&mut *tx)
-    .await?;
+            source_id,
+        )
+        .execute(&mut *tx)
+        .await?;
+    }
     sqlx::query!(
         "
 		INSERT INTO synced_game_option_state (singleton, revision, catalog_revision)
@@ -308,13 +329,15 @@ pub(in crate::api::instance) async fn initialize_from_source_instance(
         update_app_fullscreen_setting(&mut tx, value, fullscreen_sync_enabled)
             .await?;
     }
-    super::locales::record_observations(
-        &mut tx,
-        metadata,
-        &document,
-        locale_snapshot.as_deref(),
-    )
-    .await;
+    if let Some((metadata, locale_snapshot)) = from {
+        super::locales::record_observations(
+            &mut tx,
+            metadata,
+            document,
+            locale_snapshot,
+        )
+        .await;
+    }
     tx.commit().await?;
     super::locales::queue_game_locale_index();
     Ok(())

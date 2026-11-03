@@ -46,11 +46,15 @@ fn horizon_manifest() -> Manifest {
             id: horizon::GAME_VERSION.to_string(),
             stable: true,
             version_group: None,
-            loaders: vec![daedalus::modded::LoaderVersion {
-                id: "latest".to_string(),
-                url: String::new(),
-                stable: true,
-            }],
+            // `latest` plays Oxyra; `official` plays Horizon from its own releases.
+            loaders: ["latest", horizon::OFFICIAL]
+                .into_iter()
+                .map(|id| daedalus::modded::LoaderVersion {
+                    id: id.to_string(),
+                    url: String::new(),
+                    stable: true,
+                })
+                .collect(),
         }],
         version_groups: Vec::new(),
     }

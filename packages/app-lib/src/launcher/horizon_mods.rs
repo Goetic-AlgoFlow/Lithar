@@ -549,8 +549,19 @@ pub async fn install_file(
         version,
         requires,
     } = file_manifest(&bytes, kind)?;
-    write(&mod_file(instance, &id, kind), &bytes, &state.io_semaphore).await?;
     let mut mods = installed(instance).await;
+    let missing: Vec<&str> = requires
+        .iter()
+        .filter(|r| !mods.contains_key(*r))
+        .map(String::as_str)
+        .collect();
+    if !missing.is_empty() {
+        bail!(ErrorKind::InputError(format!(
+            "{id} needs {}: install it first",
+            missing.join(", ")
+        )));
+    }
+    write(&mod_file(instance, &id, kind), &bytes, &state.io_semaphore).await?;
     mods.insert(
         id.clone(),
         InstalledMod {

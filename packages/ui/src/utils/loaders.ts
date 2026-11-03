@@ -14,6 +14,8 @@ export const loaderDisplayNames: Record<string, string> = {
 	bukkit: 'Bukkit',
 	vanilla: 'Vanilla',
 	horizon: 'Oxyra',
+	/** Horizon itself, from its own releases: an instance of loader `horizon`, version `official`. */
+	horizon_official: 'Horizon',
 }
 
 export const formatLoaderLabel = (item: string) =>

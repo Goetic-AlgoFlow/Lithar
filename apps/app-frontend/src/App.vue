@@ -9,7 +9,7 @@ import {
 	PlayIcon,
 	PlusIcon,
 	RefreshCwIcon,
-	ServerStackIcon,
+	ServerIcon,
 	SettingsIcon,
 	ShirtIcon,
 	SpinnerIcon,
@@ -42,7 +42,6 @@ import {
 	TeleportOverflowMenu,
 	TooltipDirective,
 	useDebugLogger,
-	useHostingIntercom,
 	UserRoleIcon,
 	useVIntl,
 } from '@modrinth/ui'
@@ -176,7 +175,6 @@ const breadcrumbManager = createBreadcrumbManager()
 provideBreadcrumbManager(breadcrumbManager)
 const APP_LEFT_NAV_WIDTH = '4rem'
 const APP_SIDEBAR_WIDTH = 300
-const INTERCOM_BUBBLE_DEFAULT_PADDING = 20
 const credentials = ref()
 const storedModrinthAccounts = ref([])
 let credentialsRefreshId = 0
@@ -194,25 +192,6 @@ const forceSidebar = computed(
 		route.path.startsWith('/user'),
 )
 const sidebarVisible = computed(() => sidebarToggled.value || forceSidebar.value)
-const hostingRouteActive = computed(() => route.path.startsWith('/hosting'))
-
-const hostingIntercomIdentityKey = computed(() => {
-	const rawServerId = route.params.id
-	const serverId = Array.isArray(rawServerId) ? rawServerId[0] : rawServerId
-	const userId = credentials.value?.user_id ?? credentials.value?.user?.id ?? 'anonymous'
-	return `${userId}:${serverId ?? 'hosting'}`
-})
-const hostingIntercom = useHostingIntercom({
-	enabled: computed(() => hostingRouteActive.value && !!credentials.value?.session),
-	appId: 'ykeritl9',
-	fetchToken: fetchIntercomToken,
-	identityKey: hostingIntercomIdentityKey,
-	horizontalPadding: computed(() =>
-		sidebarVisible.value
-			? APP_SIDEBAR_WIDTH + INTERCOM_BUBBLE_DEFAULT_PADDING
-			: INTERCOM_BUBBLE_DEFAULT_PADDING,
-	),
-})
 
 const notificationManager = new AppNotificationManager()
 provideNotificationManager(notificationManager)
@@ -259,7 +238,6 @@ providePageContext({
 		left: ref(APP_LEFT_NAV_WIDTH),
 		right: computed(() => (sidebarVisible.value ? `${APP_SIDEBAR_WIDTH}px` : '0px')),
 	},
-	intercomBubble: hostingIntercom.intercomBubble,
 	featureFlags: {
 		serverRamAsBytesAlwaysOn: computed(() =>
 			appSettings.getFeatureFlag('server_ram_as_bytes_always_on'),
@@ -333,9 +311,6 @@ function onCreationIconSaved(iconPath, config) {
 	context.instanceIconPath.value = iconPath
 }
 
-const displayedServerInviteNotifications = new Set()
-const serverInvitePopupNotificationIds = new Set()
-let liveNotificationGeneration = 0
 let liveNotificationsEnabled = true
 
 const offline = ref(!navigator.onLine)
@@ -452,9 +427,9 @@ const messages = defineMessages({
 		id: 'app.nav.home',
 		defaultMessage: 'Home',
 	},
-	modrinthHosting: {
-		id: 'app.nav.modrinth-hosting',
-		defaultMessage: 'Modrinth Hosting',
+	localServers: {
+		id: 'app.nav.local-servers',
+		defaultMessage: 'Local servers',
 	},
 	screenshots: {
 		id: 'app.nav.screenshots',
@@ -674,43 +649,6 @@ traceStartupStep('Initialize backend state', () => initialize_state(appEventChan
 	})
 
 const queryClient = useQueryClient()
-
-watch(stateInitialized, (ready) => {
-	if (ready) {
-		queryClient.prefetchQuery({
-			queryKey: ['servers'],
-			queryFn: async () => {
-				const response = await tauriApiClient.archon.servers_v0.list({ limit: 100 })
-				const hasMedalServers = response.servers.some((s) => s.is_medal)
-				if (hasMedalServers) {
-					const subscriptions = await tauriApiClient.labrinth.billing_internal.getSubscriptions()
-					for (const server of response.servers) {
-						if (server.is_medal) {
-							const sub = subscriptions.find((s) => s.metadata?.id === server.server_id)
-							if (sub) {
-								server.medal_expires = new Date(
-									new Date(sub.created).getTime() + 5 * 86400000,
-								).toISOString()
-							}
-						}
-					}
-				}
-				return response
-			},
-			staleTime: 30_000,
-		})
-		queryClient.prefetchQuery({
-			queryKey: ['billing', 'subscriptions'],
-			queryFn: () => tauriApiClient.labrinth.billing_internal.getSubscriptions(),
-			staleTime: 30_000,
-		})
-		queryClient.prefetchQuery({
-			queryKey: ['billing', 'payments'],
-			queryFn: () => tauriApiClient.labrinth.billing_internal.getPayments(),
-			staleTime: 30_000,
-		})
-	}
-})
 
 const error = useError()
 const errorModal = ref()
@@ -1177,32 +1115,6 @@ const modrinthAccountMenuOptions = computed(() => [
 	},
 ])
 
-async function fetchIntercomToken() {
-	const creds = await getCreds()
-	if (!creds?.session) {
-		throw new Error('Not authenticated')
-	}
-
-	const params = new URLSearchParams()
-	const rawServerId = route.params.id
-	const serverId = Array.isArray(rawServerId) ? rawServerId[0] : rawServerId
-	if (route.path.startsWith('/hosting/manage/') && typeof serverId === 'string') {
-		params.set('server_id', serverId)
-	}
-	const query = params.size > 0 ? `?${params.toString()}` : ''
-
-	const response = await tauriFetch(`${config.siteUrl}/api/intercom/messenger-jwt${query}`, {
-		method: 'GET',
-		headers: {
-			Authorization: `Bearer ${creds.session}`,
-		},
-	})
-	if (!response.ok) {
-		throw new Error(`Failed to fetch Intercom token: ${response.status}`)
-	}
-	return await response.json()
-}
-
 onMounted(() => {
 	invoke('show_window')
 
@@ -1225,98 +1137,13 @@ provideMinecraftAccounts(computed(() => sidebar.value?.minecraftAccounts ?? null
 useAppEvent('command', handleCommand, appEvents)
 useAppEvent('notification', handleLiveNotification, appEvents)
 
-async function markLiveNotificationRead(notification) {
-	try {
-		await tauriApiClient.labrinth.notifications_v2.markAsRead(notification.id)
-	} catch (error) {
-		if (error instanceof ModrinthApiError && error.statusCode === 404) {
-			console.warn(`notification ${notification.id} could not be marked as read`, error)
-			return
-		}
-		throw error
-	}
-}
-
-async function respondToServerInvite(notification, action) {
-	const serverId = notification.body?.server_id
-	if (typeof serverId !== 'string') {
-		throw new Error('Missing server ID for invite notification.')
-	}
-
-	await tauriApiClient.request(`/servers/${serverId}/invites/${action}`, {
-		api: 'archon',
-		version: 1,
-		method: 'POST',
-	})
-	await markLiveNotificationRead(notification)
-
-	return serverId
-}
-
-async function acceptServerInviteNotification(notification) {
-	try {
-		const serverId = await respondToServerInvite(notification, 'accept')
-		await router.push(`/hosting/manage/${encodeURIComponent(serverId)}`)
-		queryClient.invalidateQueries({ queryKey: ['servers'] })
-	} catch (error) {
-		handleError(error)
-	}
-}
-
-async function declineServerInviteNotification(notification) {
-	try {
-		await respondToServerInvite(notification, 'decline')
-	} catch (error) {
-		handleError(error)
-	}
-}
-
-function openServerInviteInviterProfile(inviterName) {
-	if (!inviterName) return
-	void router.push(`/user/${encodeURIComponent(inviterName)}`)
-}
-
 async function handleLiveNotification(notification) {
 	if (!liveNotificationsEnabled || !notification?.body || notification.read) return
 	if (await sharedInstanceInviteHandler.value?.handleNotification(notification)) return
-
-	if (notification.body.type === 'server_invite') {
-		if (displayedServerInviteNotifications.has(notification.id)) return
-
-		const generation = liveNotificationGeneration
-		displayedServerInviteNotifications.add(notification.id)
-
-		const serverName =
-			typeof notification.body.server_name === 'string' ? notification.body.server_name : 'a server'
-		const inviterId = notification.body.invited_by
-		const invitedBy =
-			typeof inviterId === 'string' ? await get_user(inviterId, 'bypass').catch(() => null) : null
-		if (generation !== liveNotificationGeneration) return
-
-		const popupNotification = addPopupNotification({
-			contentType: 'toast',
-			title: serverName,
-			type: 'server-invite',
-			actorName: invitedBy?.username ?? null,
-			actorAvatarUrl: invitedBy?.avatar_url ?? null,
-			entityName: serverName,
-			autoCloseMs: null,
-			onAccept: () => acceptServerInviteNotification(notification),
-			onDecline: () => declineServerInviteNotification(notification),
-			onOpenActor: () => openServerInviteInviterProfile(invitedBy?.username ?? null),
-		})
-		serverInvitePopupNotificationIds.add(popupNotification.id)
-	}
 }
 
 function clearLiveNotifications() {
-	liveNotificationGeneration++
 	liveNotificationsEnabled = false
-	for (const id of serverInvitePopupNotificationIds) {
-		popupNotificationManager.removeNotification(id)
-	}
-	displayedServerInviteNotifications.clear()
-	serverInvitePopupNotificationIds.clear()
 	sharedInstanceInviteHandler.value?.clearNotifications()
 }
 
@@ -1563,16 +1390,11 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 				<ImageIcon />
 			</NavButton>
 			<NavButton
-				v-tooltip.right="formatMessage(messages.modrinthHosting)"
-				to="/hosting/manage"
-				:is-primary="(r) => r.path === '/hosting/manage' || r.path === '/hosting/manage/'"
-				:is-subpage="
-					(r) =>
-						(r.path.startsWith('/hosting/manage/') && r.path !== '/hosting/manage/') ||
-						((r.path.startsWith('/browse') || r.path.startsWith('/project')) && r.query.sid)
-				"
+				v-tooltip.right="formatMessage(messages.localServers)"
+				to="/local-servers"
+				:is-subpage="(r) => r.path.startsWith('/local-servers/')"
 			>
-				<ServerStackIcon />
+				<ServerIcon />
 			</NavButton>
 			<suspense>
 				<QuickInstanceSwitcher>

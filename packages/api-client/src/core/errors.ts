@@ -60,7 +60,9 @@ export class ModrinthApiError extends Error {
 			})
 		}
 
-		return new ModrinthApiError(String(error), { context })
+		// The app's commands reject with a plain `{ message, code }`.
+		const message = (error as { message?: unknown } | null)?.message
+		return new ModrinthApiError(typeof message === 'string' ? message : String(error), { context })
 	}
 }
 

@@ -18,11 +18,17 @@ Lithar is a Minecraft: Java Edition launcher with a clean interface, flexible ac
 
 ## Oxyra
 
-When you create an instance, choose **Oxyra** as the loader: its version is 26.3. Lithar downloads Minecraft, its assets and Java, then Oxyra, and prepares Oxyra's files from your copy of Minecraft. **Install from file** adds Oxyra mods. Java mods don't run in Oxyra. Oxyra runs on Windows x64, Linux x86-64 and macOS on Apple Silicon.
+When you create an instance, choose **Oxyra** as the loader (or **Horizon** for Horizon itself, from its own releases): its version is 26.3. Lithar downloads Minecraft, its assets and Java, then Oxyra, and prepares Oxyra's files from your copy of Minecraft. **Install from file** adds Oxyra mods. Java mods don't run in Oxyra. Oxyra runs on Windows x64, Linux x86-64 and macOS on Apple Silicon.
+
+Native Oxyra mods are compiled into the instance's game before its next launch, on Oxyra's source ([Goetic-AlgoFlow/Oxyra](https://github.com/Goetic-AlgoFlow/Oxyra)). The first build downloads Rust and takes 20 to 30 minutes; later builds are faster.
+
+## Download
+
+Download `Lithar.exe` from the [latest release](https://github.com/Goetic-AlgoFlow/Lithar/releases/latest) and run it (Windows x64; it uses Microsoft Edge WebView2, included in Windows 10 and 11).
 
 ## Building from source
 
-Lithar has no published releases yet; build it from this repository. You need Rust 1.95, Node.js 24, pnpm 12.11.2 and Java 21.
+To build Lithar yourself, you need Rust 1.95, Node.js 24, pnpm 12.11.2 and Java 21.
 
 ```bash
 pnpm install

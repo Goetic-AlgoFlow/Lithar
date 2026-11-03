@@ -388,10 +388,12 @@ export function createCreationFlowContext(
 			setupType.value === 'vanilla' ||
 			selectedLoader.value === 'vanilla' ||
 			selectedLoader.value === 'horizon' ||
+			selectedLoader.value === 'horizon_official' ||
 			projectInstall.value !== null,
 	)
 
 	function toApiLoaderName(loader: string): string {
+		if (loader === 'horizon_official') return 'horizon'
 		return loader === 'neoforge' ? 'neo' : loader
 	}
 

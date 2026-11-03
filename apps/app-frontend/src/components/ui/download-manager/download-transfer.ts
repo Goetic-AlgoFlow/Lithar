@@ -14,6 +14,7 @@ function getDownloadProgress(job: InstallJobSnapshot) {
 	if (
 		job.phase === 'downloading_pack_file' ||
 		job.phase === 'downloading_minecraft' ||
+		job.phase === 'running_loader_processors' ||
 		(job.phase === 'preparing_java' &&
 			job.details.type === 'java' &&
 			job.details.step === 'downloading')

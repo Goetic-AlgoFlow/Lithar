@@ -34,6 +34,21 @@ pub const GAME_VERSION: &str = "26.3";
 
 const RELEASES_URL: &str =
     "https://api.github.com/repos/horizon-rust/horizon/releases?per_page=30";
+/// Lithar's own releases, which carry the Oxyra launcher: Horizon's command
+/// line with `HORIZON_NATIVE_REPO`, for Oxyra's native hook points.
+const LITHAR_RELEASES_URL: &str =
+    "https://api.github.com/repos/Goetic-AlgoFlow/Lithar/releases?per_page=30";
+/// Oxyra's published source (`owner/name@branch`), which native mods build on
+/// when Lithar's own checkout is not on this computer.
+const OXYRA_SOURCE: &str = "Goetic-AlgoFlow/Oxyra@oxyra";
+
+/// The loader version of an instance that plays Horizon itself rather than
+/// Oxyra: Horizon's own launcher and source build its native mods.
+pub const OFFICIAL: &str = "official";
+
+pub fn is_official(loader_version: Option<&str>) -> bool {
+    loader_version == Some(OFFICIAL)
+}
 const MOJANG_MANIFEST_URL: &str =
     "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
 
@@ -63,6 +78,40 @@ struct MojangVersion {
     id: String,
     url: String,
     sha1: String,
+}
+
+/// The version JSONs a build's preparer accepts, from its `research-lock.json`.
+#[derive(Deserialize)]
+struct ResearchLock {
+    minecraft: LockedMinecraft,
+}
+
+#[derive(Deserialize)]
+struct LockedMinecraft {
+    manifest_sha1: String,
+    #[serde(default)]
+    accepted_manifest_sha1: Vec<String>,
+}
+
+impl LockedMinecraft {
+    /// Mojang's current version JSON when the build knows it, else the one it
+    /// pins: Mojang keeps every republish at its own address, and a build
+    /// refuses one published after it.
+    fn version_json(&self, current: MojangVersion) -> MojangVersion {
+        if current.sha1 == self.manifest_sha1
+            || self.accepted_manifest_sha1.contains(&current.sha1)
+        {
+            return current;
+        }
+        MojangVersion {
+            url: format!(
+                "https://piston-meta.mojang.com/v1/packages/{}/{}.json",
+                self.manifest_sha1, current.id
+            ),
+            sha1: self.manifest_sha1.clone(),
+            id: current.id,
+        }
+    }
 }
 
 /// The release archive Horizon publishes for this computer.
@@ -127,13 +176,13 @@ fn java_home(java: &JavaVersion) -> Option<PathBuf> {
 }
 
 #[cfg(windows)]
-fn hide_console(command: &mut Command) {
+pub(crate) fn hide_console(command: &mut Command) {
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
     command.creation_flags(CREATE_NO_WINDOW);
 }
 
 #[cfg(not(windows))]
-fn hide_console(_command: &mut Command) {}
+pub(crate) fn hide_console(_command: &mut Command) {}
 
 /// Points `link` at the folder `target`: a junction on Windows, which needs no
 /// administrator rights, a symlink elsewhere.
@@ -180,11 +229,12 @@ async fn link_dir(target: &Path, link: &Path) -> crate::Result<()> {
 /// which is what every `horizon-prepare` release reads (`--minecraft-dir`).
 /// Only Mojang's version JSON is a file of its own: Horizon pins its SHA-1,
 /// and the metadata server's copy is rewritten.
-async fn minecraft_dir(state: &State) -> crate::Result<PathBuf> {
+async fn minecraft_dir(state: &State, build: &Path) -> crate::Result<PathBuf> {
     let minecraft = horizon_dir(state).join("minecraft");
     let version_dir = minecraft.join("versions").join(GAME_VERSION);
     download_mojang_version_json(
         state,
+        build,
         &version_dir.join(format!("{GAME_VERSION}.json")),
     )
     .await?;
@@ -223,6 +273,7 @@ pub async fn install(
     loading_bar: Option<&LoadingBarId>,
     reporter: Option<&InstallProgressReporter>,
     phase_details: &InstallPhaseDetails,
+    official: bool,
 ) -> crate::Result<()> {
     if version_info.id != GAME_VERSION {
         bail!(ErrorKind::LauncherError(format!(
@@ -258,7 +309,7 @@ pub async fn install(
     }
     let play = local_overlay(state, &build).await?.unwrap_or(build.clone());
     finish(state, &play).await?;
-    build_native(state, instance, &build, &report).await?;
+    build_native(state, instance, &build, &report, official).await?;
     report.report(1.0, "Oxyra is ready").await
 }
 
@@ -315,7 +366,7 @@ async fn local_overlay(
 
 /// The resources version folder `dir` plays with: its own, or a local
 /// overlay's base's.
-async fn played_resources(state: &State, dir: &Path) -> PathBuf {
+pub(crate) async fn played_resources(state: &State, dir: &Path) -> PathBuf {
     match io::read(dir.join(OVERLAY_BASE)).await {
         Ok(base) => resources_dir(&build_dir(
             state,
@@ -370,7 +421,7 @@ async fn prepare(
     report
         .report(0.02, "Downloading Minecraft files for Oxyra")
         .await?;
-    let minecraft = minecraft_dir(state).await?;
+    let minecraft = minecraft_dir(state, build).await?;
     let server = version_info.downloads.get(&DownloadType::Server).ok_or(
         ErrorKind::LauncherError(format!(
             "Minecraft {GAME_VERSION} has no server download"
@@ -472,6 +523,7 @@ async fn build_native(
     instance: &Path,
     base: &Path,
     report: &Progress<'_>,
+    official: bool,
 ) -> crate::Result<()> {
     let mods = horizon_mods::enabled_native_mods(instance).await;
     if mods.is_empty() {
@@ -487,7 +539,7 @@ async fn build_native(
     report
         .report(0.8, "Downloading the Oxyra launcher for native mods")
         .await?;
-    let cli = launcher_cli(state).await?;
+    let cli = launcher_cli(state, official).await?;
     let key = native_key(&mods);
     let staging = horizon_dir(state).join("native-mods").join(&key[..16]);
     if staging.exists() {
@@ -505,7 +557,10 @@ async fn build_native(
             .await??;
     }
 
-    report.report(0.82, "Building Oxyra with native mods (the first build takes 20 to 30 minutes)").await?;
+    let mut step = String::from("Building Oxyra with native mods");
+    report.report(NATIVE_BUILD_START, &step).await?;
+    let expected = last_native_build_seconds(state).await;
+    let started = std::time::Instant::now();
     let base_version = base
         .file_name()
         .and_then(|name| name.to_str())
@@ -523,11 +578,24 @@ async fn build_native(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     // The Oxyra checkout the mods build on, as Lithar was built with (a local build's
-    // default); one set when it runs reaches the launcher as it is.
-    if std::env::var_os("HORIZON_NATIVE_SOURCE").is_none()
-        && let Some(source) = option_env!("HORIZON_NATIVE_SOURCE")
-    {
-        command.env("HORIZON_NATIVE_SOURCE", source);
+    // default); one set when it runs reaches the launcher as it is. Without one on this
+    // computer, Oxyra's published source.
+    let checkout = (!official)
+        .then(|| std::env::var_os("HORIZON_NATIVE_SOURCE"))
+        .flatten()
+        .or_else(|| option_env!("HORIZON_NATIVE_SOURCE").map(Into::into))
+        .map(PathBuf::from)
+        .filter(|dir| dir.join(".git").exists());
+    match checkout {
+        Some(dir) => {
+            command.env("HORIZON_NATIVE_SOURCE", dir);
+        }
+        None if !official
+            && std::env::var_os("HORIZON_NATIVE_REPO").is_none() =>
+        {
+            command.env("HORIZON_NATIVE_REPO", OXYRA_SOURCE);
+        }
+        None => {}
     }
     hide_console(&mut command);
     let mut child = command.spawn().map_err(|e| IOError::with_path(e, &cli))?;
@@ -545,13 +613,23 @@ async fn build_native(
     let mut stderr_text = String::new();
     if let Some(stderr) = child.stderr.take() {
         let mut lines = BufReader::new(stderr).lines();
-        while let Some(line) = lines.next_line().await? {
-            tracing::info!("horizon native-build: {line}");
-            if let Some(step) = line.split_once("] ").map(|(_, step)| step) {
-                report.report(0.85, &format!("Native mods: {step}")).await?;
+        let mut tick = tokio::time::interval(NATIVE_BUILD_TICK);
+        let fraction =
+            || native_build_fraction(started.elapsed().as_secs_f64(), expected);
+        loop {
+            tokio::select! {
+                line = lines.next_line() => {
+                    let Some(line) = line? else { break };
+                    tracing::info!("horizon native-build: {line}");
+                    if let Some((_, said)) = line.split_once("] ") {
+                        step = format!("Native mods: {said}");
+                        report.report(fraction(), &step).await?;
+                    }
+                    stderr_text.push_str(&line);
+                    stderr_text.push('\n');
+                }
+                _ = tick.tick() => report.report(fraction(), &step).await?,
             }
-            stderr_text.push_str(&line);
-            stderr_text.push('\n');
         }
     }
     let status = child.wait().await?;
@@ -571,12 +649,46 @@ async fn build_native(
         )));
     }
     let _ = io::remove_dir_all(&staging).await;
+    let _ = write(
+        &horizon_dir(state).join(NATIVE_BUILD_SECONDS),
+        started.elapsed().as_secs().to_string().as_bytes(),
+        &state.io_semaphore,
+    )
+    .await;
     write(
         &instance.join(NATIVE_BUILD),
         &serde_json::to_vec(&NativeBuild { key, version })?,
         &state.io_semaphore,
     )
     .await
+}
+
+/// How long the last native build took, in seconds, beside the launcher's
+/// files: the next build's progress and remaining time are measured against it.
+const NATIVE_BUILD_SECONDS: &str = "native-build-seconds";
+/// A first build downloads Rust and compiles everything: 20 to 30 minutes.
+const FIRST_NATIVE_BUILD_SECONDS: f64 = 1500.0;
+/// Where the native build starts on the install's progress bar, and how often
+/// its progress moves while the compiler prints nothing.
+const NATIVE_BUILD_START: f64 = 0.82;
+const NATIVE_BUILD_TICK: std::time::Duration =
+    std::time::Duration::from_secs(2);
+
+async fn last_native_build_seconds(state: &State) -> f64 {
+    io::read(horizon_dir(state).join(NATIVE_BUILD_SECONDS))
+        .await
+        .ok()
+        .and_then(|bytes| String::from_utf8_lossy(&bytes).trim().parse().ok())
+        .filter(|seconds: &f64| *seconds >= 1.0)
+        .unwrap_or(FIRST_NATIVE_BUILD_SECONDS)
+}
+
+/// The progress of a native build `elapsed` seconds in, when it should take
+/// `expected`: steady over the time so the download manager can tell the time
+/// left, and held just short of the end while a build runs longer.
+fn native_build_fraction(elapsed: f64, expected: f64) -> f64 {
+    let done = (elapsed / expected).clamp(0.0, 1.0);
+    (NATIVE_BUILD_START + (1.0 - NATIVE_BUILD_START) * done).min(0.995)
 }
 
 /// The version `native-build` printed: `<version> built and selected ...`.
@@ -607,27 +719,38 @@ const LOCAL_LAUNCHER: &str = "RUSTCRAFT_HORIZON_LAUNCHER";
 
 /// The official Horizon launcher's program, downloaded once per release into
 /// `launcher/<tag>/`: only its command line is used, for native builds.
-async fn launcher_cli(state: &State) -> crate::Result<PathBuf> {
+async fn launcher_cli(state: &State, official: bool) -> crate::Result<PathBuf> {
     // Set when Lithar is built (a local build's default), else when it runs.
     if let Some(local) = std::env::var_os(LOCAL_LAUNCHER)
         .or_else(|| option_env!("RUSTCRAFT_HORIZON_LAUNCHER").map(Into::into))
         .map(PathBuf::from)
+        .filter(|_| !official)
         && local.is_file()
     {
         return Ok(local);
     }
-    let releases = list_releases(state).await?;
+    let url = if official {
+        RELEASES_URL
+    } else {
+        LITHAR_RELEASES_URL
+    };
+    let releases = list_releases(state, url).await?;
     let archive = launcher_archive()?;
     let release = releases
         .into_iter()
         .find(|r| {
-            r.tag_name.starts_with("launcher@")
+            (!official || r.tag_name.starts_with("launcher@"))
                 && r.assets.iter().any(|a| a.name == archive)
         })
         .ok_or(ErrorKind::LauncherError(
             "no Oxyra launcher release found".to_string(),
         ))?;
     let tag = release.tag_name.replace('@', "-");
+    let tag = if official {
+        tag
+    } else {
+        format!("lithar-{tag}")
+    };
     let dir = horizon_dir(state).join("launcher").join(&tag);
     if !dir.join(INSTALLED).is_file() {
         download_release(state, &release, archive, &dir, false).await?;
@@ -744,7 +867,7 @@ async fn finish(state: &State, build: &Path) -> crate::Result<()> {
 /// Downloads the latest Horizon release for this platform, unless it is
 /// installed already, and returns its folder.
 async fn download_build(state: &State) -> crate::Result<PathBuf> {
-    let releases = list_releases(state).await?;
+    let releases = list_releases(state, RELEASES_URL).await?;
     let archive_name = platform_archive()?;
     let release = pick_release(releases, archive_name).ok_or(
         ErrorKind::LauncherError(format!(
@@ -771,10 +894,13 @@ async fn download_build(state: &State) -> crate::Result<PathBuf> {
     Ok(build)
 }
 
-async fn list_releases(state: &State) -> crate::Result<Vec<Release>> {
+async fn list_releases(
+    state: &State,
+    url: &str,
+) -> crate::Result<Vec<Release>> {
     fetch_json(
         Method::GET,
-        RELEASES_URL,
+        url,
         None,
         None,
         None,
@@ -980,9 +1106,11 @@ fn expected_sha256(sums: &str, name: &str) -> Option<String> {
 }
 
 /// Mojang's own version JSON: Horizon pins its SHA-1, and the copy the
-/// metadata server serves is rewritten.
+/// metadata server serves is rewritten. When Mojang republished it after
+/// `build` was made, the one `build` pins.
 async fn download_mojang_version_json(
     state: &State,
+    build: &Path,
     destination: &Path,
 ) -> crate::Result<()> {
     let manifest: MojangManifest = fetch_json(
@@ -1003,6 +1131,14 @@ async fn download_mojang_version_json(
         .ok_or(ErrorKind::LauncherError(format!(
             "Mojang's version manifest has no {GAME_VERSION}"
         )))?;
+    let lock = io::read(build.join("research-lock.json"))
+        .await
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<ResearchLock>(&bytes).ok());
+    let version = match lock {
+        Some(lock) => lock.minecraft.version_json(version),
+        None => version,
+    };
     download_checked(state, &version.url, &version.sha1, destination).await
 }
 
@@ -1127,6 +1263,41 @@ fn session_json(credentials: &Credentials) -> serde_json::Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_build_gets_the_version_json_it_knows() {
+        let lock = LockedMinecraft {
+            manifest_sha1: "11f1".into(),
+            accepted_manifest_sha1: vec!["5df1".into()],
+        };
+        let current = |sha1: &str| MojangVersion {
+            id: "26.3".into(),
+            url: format!("https://mojang/{sha1}"),
+            sha1: sha1.into(),
+        };
+        assert_eq!(
+            lock.version_json(current("5df1")).url,
+            "https://mojang/5df1"
+        );
+        assert_eq!(
+            lock.version_json(current("11f1")).url,
+            "https://mojang/11f1"
+        );
+        let pinned = lock.version_json(current("8060"));
+        assert_eq!(pinned.sha1, "11f1");
+        assert_eq!(
+            pinned.url,
+            "https://piston-meta.mojang.com/v1/packages/11f1/26.3.json"
+        );
+    }
+
+    #[test]
+    fn a_native_build_moves_with_the_time_it_should_take() {
+        assert_eq!(native_build_fraction(0.0, 200.0), NATIVE_BUILD_START);
+        let half = native_build_fraction(100.0, 200.0);
+        assert!((half - (NATIVE_BUILD_START + 1.0) / 2.0).abs() < 1e-9);
+        assert_eq!(native_build_fraction(10_000.0, 200.0), 0.995);
+    }
 
     #[test]
     fn keeps_the_preparers_error_line() {

@@ -14,8 +14,7 @@ mod groups;
 mod horizon;
 pub use self::horizon::{
     HorizonMod, HorizonModKind, horizon_mod_install, horizon_mod_install_file,
-    horizon_mod_remove,
-    horizon_mod_set_enabled, horizon_mods,
+    horizon_mod_remove, horizon_mod_set_enabled, horizon_mods,
 };
 mod icon;
 mod install;
@@ -112,19 +111,26 @@ pub use self::synced_options::game_options::{
     GameOptionCompatibilityReason, GameOptionCompatibilityStatus,
     GameOptionEditorChoice, GameOptionEditorDefinition, GameOptionKind,
     GameOptionMappingKind, GameOptionValidationIssue, GameOptionValueState,
-    GameOptionsPackSource, GameOptionsSourceCandidate, GameOptionsSourceIssue,
-    GameSettingCategory, GameSettingChange, GameSettingLocaleLabels,
-    GameSettingsEditorState, SaveGameSettingsResult, UpdateGameSettingsRequest,
+    GameOptionsPackSource, GameOptionsProfile, GameOptionsSourceCandidate,
+    GameOptionsSourceIssue, GameSettingCategory, GameSettingChange,
+    GameSettingLocaleLabels, GameSettingsEditorState, SaveGameSettingsResult,
+    UpdateGameSettingsRequest,
     apply_launcher_overrides as apply_game_options_launcher_overrides,
+    apply_profile as apply_game_options_profile,
     capture_pack_base as capture_game_options_pack_base,
+    delete_profile as delete_game_options_profile,
     get_config as get_synced_game_options_config,
     get_game_setting_locale_labels,
     get_local_config as get_local_game_options_config,
+    guess_profile_version as guess_game_options_profile_version,
+    import_profile as import_game_options_profile,
+    list_profiles as list_game_options_profiles,
     list_sync_sources as list_game_options_sync_sources,
     preview_changes as preview_synced_game_option_changes,
     preview_local_changes as preview_local_game_option_changes,
     save_changes as save_synced_game_option_changes,
     save_local_changes as save_local_game_option_changes,
+    save_profile_from_instance as save_game_options_profile,
     sync_before_launch as sync_game_options_before_launch,
 };
 pub(crate) use self::synced_options::game_options::{
