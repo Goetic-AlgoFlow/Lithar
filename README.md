@@ -24,7 +24,7 @@ Native Oxyra mods are compiled into the instance's game before its next launch, 
 
 ## Download
 
-Download `Lithar.exe` from the [latest release](https://github.com/Goetic-AlgoFlow/Lithar/releases/latest) and run it (Windows x64; it uses Microsoft Edge WebView2, included in Windows 10 and 11).
+Download `Lithar.exe` from the [latest release](https://github.com/Goetic-AlgoFlow/Lithar/releases/latest) and run it (Windows x64; it uses Microsoft Edge WebView2, included in Windows 10 and 11). Oxyra's launcher updates on its own: Lithar takes it from the newest release that has one, `launcher-…` pre-releases included.
 
 ## Building from source
 
